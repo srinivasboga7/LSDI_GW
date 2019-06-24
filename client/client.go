@@ -1,7 +1,7 @@
 package client
 
 import (
-	//"crypto/ecdsa"
+	"crypto/ecdsa"
 	"math/rand"
 	"GO-DAG/DataTypes"
 	"net/http"
@@ -9,7 +9,3 @@ import (
 	"encoding/json"
 )
 
-func SimulateClient(url string) {
-	
-
-}

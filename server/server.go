@@ -2,15 +2,13 @@ package server
 
 import(
 	"fmt"
-	"net/http"
-	"io/ioutil"
+	"net"
 	"encoding/json"
 	"GO-DAG/DataTypes"
 )
 
 
-func HandleTransaction(IPs []string) {
-
+func HandleConnection(Connection net.Conn,IPs []string) {
 
 }
 
@@ -34,5 +32,13 @@ func BroadcastTransaction(t []bytes, IPs []string) {
 
 
 func StartServer(NodeIPs []string) {
-	
+
+	for {
+
+		listener, _ := net.Listen("tcp",":9000")
+		conn, _ := listener.Accept()
+		go HandleConnection(conn,NodeIPs)
+
+	}
+	defer listener.Close()
 }
