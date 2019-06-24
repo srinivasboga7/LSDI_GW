@@ -1,4 +1,4 @@
-package main
+package server
 
 import(
 	"fmt"
@@ -9,33 +9,30 @@ import(
 )
 
 
-func HandleTransaction(w http.ResponseWriter, r *http.Request) {
+func HandleTransaction(IPs []string) {
 
-	b,err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var data DataTypes.Transaction
-	err := json.Unmarshal(b ,&data)
-	if ValidTransaction(data) {
-		AddTransaction(data)
-		BroadcastTransaction(b)
-		fmt.Println(string(data))
-	}
 
 }
 
-func ValidTransaction(t DataTypes.Transaction) {
+
+func ValidTransaction(t DataTypes.Transaction) bool {
+
+	return true
 	
 }
 
+/*
 func AddTransaction(t DataTypes.Transaction) {
+
+}
+*/
+
+func BroadcastTransaction(t []bytes, IPs []string) {
+
 
 }
 
 
-
-func main() {
-	http.HandleFunc("/Transaction",HandleTransaction)
-	http.ListenAndServe(":9000",nil)
+func StartServer(NodeIPs []string) {
+	
 }
