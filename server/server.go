@@ -5,7 +5,7 @@ import(
 	"net"
 	dt "GO-DAG/DataTypes"
 	"bytes"
-	"encoding/gob"
+	"encoding/binary"
 )
 
 
@@ -23,34 +23,38 @@ func HandleConnection(connection net.Conn) {
 	defer connection.Close()
 }
 
-func HandleRecievedData(data []byte) {
-	var t dt.Transaction
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	decoder.Decode(&t)
-	fmt.Println(t)
+func Deserialize(b []byte) dt.Transaction {
+	r := bytes.NewReader(b)
+	var tx data
+	err := binary.Read(r,binary.LittleEndian,&tx)
+	fmt.Println(err)
+	return tx
 }
 
-func Deserialize (data []byte) {
+func HandleRecievedData (data []byte) {
+	tx := Deserialize(data)
+	if ValidTransaction(tx) {
+		
+	}
 
 }
 
 
-func ValidTransaction(t DataTypes.Transaction) bool {
-
+func ValidTransaction(t dt.Transaction) bool {
+	
 	return true
 	
 }
 
 
-func AddTransaction(t DataTypes.Transaction) {
+func AddTransaction(t dt.Transaction) {
 
 }
 
-func BroadcastTransaction(t []byte, p DataTypes.peers) {	
-	p.mux.Lock()
+func BroadcastTransaction(t []byte, p dt.Peers, IP string) {	
+	p.Mux.Lock()
 
-	p.mux.UnLock()
+	p.Mux.Unlock()
 }
 
 

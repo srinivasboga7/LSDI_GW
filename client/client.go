@@ -1,23 +1,35 @@
 package client
 
 import (
-	//"crypto/ecdsa"
 	"math/rand"
 	dt "GO-DAG/DataTypes"
-	//"net"
 	"time"
-	"encoding/gob"
+	"encoding/binary"
 	"bytes"
 )
 
 func SerializeData(t dt.Transaction) []byte {
-	// too much overhead has to change
-	var b bytes.Buffer
-	e := gob.NewEncoder(&b)
-	e.Encode(t)
-	buf := b.Bytes()
-	return buf
+	// iterating over a struct is painful in golang
+	var b []byte
+	v := reflect.ValueOf(&t).Elem()
+	for i := 0; i < v.NumField() ;i++ {
+		value := v.Field(i)
+		b = append(b,EncodeToBytes(value.Interface())...)
+	}
+	return b
 }
+
+func EncodeToBytes(x interface{}) []byte {
+	switch t := x.(type) {
+	case string :
+		return []byte(x)
+	default :
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf,binary.LittleEndian, v)
+		return buf.Bytes()
+	}
+}
+
 
 func BroadcastTransaction(b []byte, p dt.Peers) {
 	p.Mux.Lock()
@@ -26,7 +38,6 @@ func BroadcastTransaction(b []byte, p dt.Peers) {
 		conn.Write(buf)
 	}
 	p.Mux.Unlock()
-
 }
 
 
