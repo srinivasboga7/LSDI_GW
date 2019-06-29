@@ -21,12 +21,12 @@ func GetIps(filename string) []string {
 }
 
 func ConnectToServer(ips []string)(dt.Peers) {
-	//Takes a slice of ips and returns sock file descriptors of tcp connections
+	//Takes a map of ips to socket file descriptors of tcp connections
 	var p dt.Peers
 	for _,ip := range ips {
 		tcpAddr, _ := net.ResolveTCPAddr("tcp4", ip)
 		conn, _ := net.DialTCP("tcp", nil, tcpAddr)    //BLocking call
-		p.Fds = append(p.Fds,conn)
+		p.Fds[ip] = conn
 	}
 	return p
 }
