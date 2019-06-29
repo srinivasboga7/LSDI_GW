@@ -6,6 +6,7 @@ import (
 	"time"
 	"encoding/binary"
 	"bytes"
+	"reflect"
 )
 
 func SerializeData(t dt.Transaction) []byte {
@@ -22,6 +23,7 @@ func SerializeData(t dt.Transaction) []byte {
 func EncodeToBytes(x interface{}) []byte {
 	switch t := x.(type) {
 	case string :
+		str := x.(string)
 		return []byte(x)
 	default :
 		buf := new(bytes.Buffer)
