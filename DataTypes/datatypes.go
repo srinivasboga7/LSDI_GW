@@ -10,11 +10,11 @@ import(
 type Transaction struct {
 	// Definition of data
 	Timestamp int64
-	Value float64
-	from []byte
+	Value float64 //could be a string but have to figure out serialization
+	From [N]byte // N - length of public key 33(compressed) or 65(uncompressed)
 	LeftTip [32]byte
 	RightTip [32]byte
-	nonce uint32
+	Nonce uint32 //temporary based on type of PoW
 }
 
 type Peers struct {
@@ -22,7 +22,13 @@ type Peers struct {
 	Fds map[string] net.Conn
 }
 
-type Store struct {
+type Node struct {
+	Tx Transaction
+	Weight uint32
+	Neighbours [] *Node //pointers to the neighbours
+}
+
+type DAG struct {
 	Mux sync.Mutex
-	DAG map[string] Transaction
+	map[string] Node // string is the hash of the transaction
 }
