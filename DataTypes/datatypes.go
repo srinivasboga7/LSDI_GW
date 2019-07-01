@@ -30,5 +30,5 @@ type Node struct {
 
 type DAG struct {
 	Mux sync.Mutex
-	map[string] Node // string is the hash of the transaction
+	Graph map[string] Node // string is the hash of the transaction
 }
