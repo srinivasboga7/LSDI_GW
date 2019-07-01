@@ -9,8 +9,10 @@ import(
 	"strings"
 )
 
+// still have to add DAG
 
 func HandleConnection(connection net.Conn, p dt.Peers ) {
+	// each connection is handled in a seperate go routine
 	for {
 		buf := make([]byte,1024)
 		_, err := connection.Read(buf)
@@ -20,7 +22,7 @@ func HandleConnection(connection net.Conn, p dt.Peers ) {
 			break
 		}
 		addr := conn.RemoteAddr()
-		ip := addr[:strings.IndexByte(addr,':')]
+		ip := addr[:strings.IndexByte(addr,':')] // seperate the port to get only IP
 		HandleRecievedData(buf,ip,p)
 	}
 	defer connection.Close()
@@ -46,11 +48,11 @@ func HandleRecievedData (data []byte, IP string, p dt.Peers) {
 }
 
 
-func ValidTransaction(t dt.Transaction) bool {
-	
+func ValidTransaction(t dt.Transaction, signature []byte) bool {
+	// check the signature 
 	return true
-	
 }
+
 
 
 func AddTransaction(t dt.Transaction) {
@@ -74,7 +76,7 @@ func StartServer(p dt.Peers) {
 	listener, _ := net.Listen("tcp",":9000")
 	for {
 		conn, _ := listener.Accept()
-		go HandleConnection(conn,p)
+ 		go HandleConnection(conn,p) // go routine executes concurrently
 
 	}
 	defer listener.Close()
