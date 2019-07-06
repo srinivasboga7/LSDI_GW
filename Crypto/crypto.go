@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/elliptic"
+	"encoding/hex"
 	"encoding/pem"
 	"math/big"
 	"os"
@@ -22,6 +23,13 @@ func PoW() {
 			
 }
 
+
+func EncodeToHex(data []byte) string {
+	return hex.EncodeToString(data)
+}
+
+
+
 func CheckForKeys() bool {
 	// Returns true if file is present in the directory
 	filename := "PrivateKey.pem"
@@ -32,8 +40,8 @@ func CheckForKeys() bool {
 }
 
 func SerializePublicKey(PublicKey *ecdsa.PublicKey) []byte {
-	key,_ := x509.MarshalPKIXPublicKey(PublicKey)
-	return key // uncompressed public key in bytes
+	key := elliptic.Marshal(PublicKey,PublicKey.X,PublicKey.Y)
+	return key // uncompressed public key in bytes lenghth 65
 }
 
 func SerializePrivateKey(privateKey *ecdsa.PrivateKey) []byte{
@@ -43,9 +51,10 @@ func SerializePrivateKey(privateKey *ecdsa.PrivateKey) []byte{
 
 
 func DeserializePublicKey(data []byte) *ecdsa.PublicKey {
-	PublicKey,_ := x509.ParsePKIXPublicKey(data)
-	PubKey,_ := PublicKey.(*ecdsa.PublicKey)
-	return PubKey
+	var PublicKey ecdsa.PublicKey
+	PublicKey.Curve = elliptic.P256()
+	PublicKey.X,PublicKey.Y = elliptic.Unmarshal(elliptic.P256(),data)
+	return &PublicKey
 }
 
 func DeserializePrivateKey(data []byte) *ecdsa.PrivateKey {
