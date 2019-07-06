@@ -4,66 +4,61 @@ import(
 	"fmt"
 	"net"
 	dt "GO-DAG/DataTypes"
-	"bytes"
-	"encoding/binary"
+	"GO-DAG/Crypto"
+	"GO-DAG/serialize"
 	"strings"
 )
 
-// still have to add DAG
-
-func HandleConnection(connection net.Conn, p dt.Peers ) {
+func HandleConnection(connection net.Conn, p dt.Peers, c chan dt.Transaction) {
 	// each connection is handled in a seperate go routine
 	for {
 		buf := make([]byte,1024)
-		_, err := connection.Read(buf)
+		len, err := connection.Read(buf)
 		if err != nil {
 			// Remove from the list of the peer
 			fmt.Println(err)
 			break
 		}
-		addr := conn.RemoteAddr()
+		addr := connection.RemoteAddr().String()
 		ip := addr[:strings.IndexByte(addr,':')] // seperate the port to get only IP
-		HandleRecievedData(buf,ip,p)
+		//fmt.Println(ip)
+		HandleRecievedData(buf[:len],ip,p,c)
 	}
 	defer connection.Close()
 }
 
-func Deserialize(b []byte) dt.Transaction {
-	// only a temporary method will change to include signature and other checks
-	r := bytes.NewReader(b)
-	var tx data
-	err := binary.Read(r,binary.LittleEndian,&tx)
-	if err != nil { 
-		fmt.Println(err)
-	}
-	return tx
-}
 
-func HandleRecievedData (data []byte, IP string, p dt.Peers) {
-	tx := Deserialize(data)
-	if ValidTransaction(tx) {
+func HandleRecievedData (data []byte, IP string, p dt.Peers,c chan dt.Transaction) {
+	tx,sign := serialize.Deserialize(data)
+	if ValidTransaction(tx,sign) {
+		fmt.Println("Valid Transaction")
 		ForwardTransaction(data,IP,p)
-		AddTransaction(tx)
+		AddTransaction(tx,c)
 	}
 }
 
 
 func ValidTransaction(t dt.Transaction, signature []byte) bool {
-	// check the signature 
-	return true
+	// check the signature
+	SerialKey := t.From
+	PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
+	s := serialize.SerializeData(t)
+	h := Crypto.Hash(s)
+	return Crypto.Verify(signature,PublicKey,h[:])
 }
 
 
 
-func AddTransaction(t dt.Transaction) {
+func AddTransaction(t dt.Transaction, c chan dt.Transaction) {
 	// Add the transaction to the DAG
-
+	c <- t
+	return
 }
 
 func ForwardTransaction(t []byte, IP string, p dt.Peers) {
 	// sending the transaction to the peers excluding the one it came from	
 	p.Mux.Lock()
-	for k,conn := range p {
+	for k,conn := range p.Fds {
 		if k != IP {
 			conn.Write(t)
 		} 
@@ -72,11 +67,11 @@ func ForwardTransaction(t []byte, IP string, p dt.Peers) {
 }
 
 
-func StartServer(p dt.Peers) {
+func StartServer(p dt.Peers, c chan dt.Transaction) {
 	listener, _ := net.Listen("tcp",":9000")
 	for {
 		conn, _ := listener.Accept()
- 		go HandleConnection(conn,p) // go routine executes concurrently
+ 		go HandleConnection(conn,p,c) // go routine executes concurrently
 
 	}
 	defer listener.Close()
