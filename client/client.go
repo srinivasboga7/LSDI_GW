@@ -4,54 +4,43 @@ import (
 	"math/rand"
 	dt "GO-DAG/DataTypes"
 	"time"
-	"encoding/binary"
-	"bytes"
-	"reflect"
+	"GO-DAG/Crypto"
+	"GO-DAG/serialize"
+	"crypto/ecdsa"
 )
 
-func SerializeData(t dt.Transaction) []byte {
-	// iterating over a struct is painful in golang
-	var b []byte
-	v := reflect.ValueOf(&t).Elem()
-	for i := 0; i < v.NumField() ;i++ {
-		value := v.Field(i)
-		b = append(b,EncodeToBytes(value.Interface())...)
-	}
-	return b
-}
 
-func EncodeToBytes(x interface{}) []byte {
-	switch t := x.(type) {
-	case string :
-		str := x.(string)
-		return []byte(x)
-	default :
-		buf := new(bytes.Buffer)
-		err := binary.Write(buf,binary.LittleEndian, v)
-		return buf.Bytes()
-	}
+func GenerateMessage(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
+	hash := Crypto.Hash(b)
+	signature := Crypto.Sign(hash[:],PrivateKey)
+	var l uint32
+	l = uint32(len(b))
+	payload := append(b,signature...)
+	payload = append(serialize.EncodeToBytes(l),payload...)
+	return payload
 }
 
 
 func BroadcastTransaction(b []byte, p dt.Peers) {
-	p.Mux.Lock()
-	buf := b
+	p.Mux.Lock() // lock for thr Peers datastructure
 	for _,conn := range p.Fds {
-		conn.Write(buf)
+		conn.Write(b)
 	}
 	p.Mux.Unlock()
 }
 
 
-func SimulateClient(p dt.Peers) {
+func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey) {
 
 	var tx dt.Transaction
 
 	for {
 		tx.Timestamp = time.Now().Unix()
 		tx.Value = rand.Float64()
-		buffer := SerializeData(tx)
-		BroadcastTransaction(buffer,p)
+		copy(tx.From[:],Crypto.SerializePublicKey(&PrivateKey.PublicKey))
+		buffer := serialize.SerializeData(tx)
+		msg := GenerateMessage(buffer,PrivateKey)
+		BroadcastTransaction(msg,p)
 		time.Sleep(2*time.Second)
 	}
 }
