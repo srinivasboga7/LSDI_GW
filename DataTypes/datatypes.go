@@ -26,7 +26,6 @@ type Peers struct {
 
 type Node struct {
 	Tx Transaction
-	Weight uint32
 	Neighbours [] string // pointers to the neighbours which gets updated when this node is chosen as tip
 
 }
