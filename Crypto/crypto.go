@@ -6,10 +6,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/elliptic"
+	dt "GO-DAG/DataTypes"
+	"GO-DAG/serialize"
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
 	"os"
+	"strings"
 	"io/ioutil"
 	"fmt"
 )
@@ -19,16 +22,37 @@ func Hash(b []byte) [32]byte {
 	return h
 }
 
-func PoW() {
-			
+
+func PoW(tx *dt.Transaction,difficulty int) {
+	for {
+		s := serialize.SerializeData(*tx)
+		hash := Hash(s)
+		h := EncodeToHex(hash[:])
+		if h[:difficulty] == strings.Repeat("0",difficulty){
+			break
+		} 
+		tx.Nonce += 1
+	}
 }
 
+func VerifyPoW(tx dt.Transaction,difficulty int) bool {
+	s := serialize.SerializeData(tx)
+	hash := Hash(s)
+	h := EncodeToHex(hash[:])
+	if h[:difficulty] == strings.Repeat("0",difficulty){
+		return true
+	}
+	return false
+}
 
 func EncodeToHex(data []byte) string {
 	return hex.EncodeToString(data)
 }
 
-
+func DecodeToBytes(data string) []byte {
+	b,_ := hex.DecodeString(data)
+	return b
+}
 
 func CheckForKeys() bool {
 	// Returns true if file is present in the directory
