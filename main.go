@@ -4,7 +4,6 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/server"
 	"GO-DAG/client"
-	"GO-DAG/storage"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
 	"GO-DAG/Discovery"
@@ -29,16 +28,14 @@ func main() {
 	var node dt.Node
 	node.Tx = genisis
 	dag.Graph[dag.Genisis] = node
-	ch := make(chan dt.Transaction)
-	go storage.AddTransaction(dag,ch)
-	go server.StartServer(peers,ch)
+	//ch := make(chan dt.Transaction)
+	go server.StartServer(peers,dag)
 	time.Sleep(time.Second)
-	//conn,_ := net.Dial("tcp","127.0.0.1:9000")
 	ips := Discovery.GetIps("ips.txt")
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
 	fmt.Println("connection established with all peers")
 	PrivateKey := Crypto.GenerateKeys()
-	client.SimulateClient(peers,PrivateKey,dag,ch)
+	client.SimulateClient(peers,PrivateKey,dag)
 }
