@@ -7,6 +7,7 @@ import (
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
 	"GO-DAG/Discovery"
+	"GO-DAG/storage"
 	"net"
 	"fmt"
 	"time"
@@ -28,8 +29,13 @@ func main() {
 	var node dt.Node
 	node.Tx = genisis
 	dag.Graph[dag.Genisis] = node
-	//ch := make(chan dt.Transaction)
 	go server.StartServer(peers,dag)
+	go func() {
+		for {
+			time.Sleep(1000*time.Second)
+			storage.PruneDag(&dag)
+		}
+	} ()
 	time.Sleep(time.Second)
 	ips := Discovery.GetIps("ips.txt")
 	peers.Mux.Lock()
