@@ -14,8 +14,9 @@ import(
 func HandleConnection(connection net.Conn, p dt.Peers, dag dt.DAG) {
 	// each connection is handled in a seperate go routine
 	for {
+		//conn.SetReadDeadline(time.Now().Add(300*time.Second))
 		buf := make([]byte,1024)
-		len, err := connection.Read(buf)
+		_, err := connection.Read(buf)
 		if err != nil {
 			// Remove from the list of the peer
 			fmt.Println(err)
@@ -24,7 +25,7 @@ func HandleConnection(connection net.Conn, p dt.Peers, dag dt.DAG) {
 		addr := connection.RemoteAddr().String()
 		ip := addr[:strings.IndexByte(addr,':')] // seperate the port to get only IP
 		//fmt.Println(ip)
-		HandleRequests(buf[:len],ip,p,dag)
+		HandleRequests(buf,ip,p,dag)
 	}
 	defer connection.Close()
 }
@@ -34,9 +35,9 @@ func HandleRequests (data []byte, IP string, p dt.Peers, dag dt.DAG) {
 	magic_number := binary.LittleEndian.Uint32(data[:4])
 	if magic_number == 1 {
 		tx,sign := serialize.DeserializeTransaction(data[4:])
-		if ValidTransaction(tx,sign) {
-			//fmt.Println("Valid Transaction")
-			if storage.AddTransaction(dag,tx) {
+		if ValidTransaction(tx,sign) { // maybe wasting verifying duplicate transactions, 
+			// instead verify signatures and PoW while tip selection
+			if storage.AddTransaction(dag,tx,sign) {
 				ForwardTransaction(data,IP,p) // Duplicates are not forwarded
 			}
 		}
@@ -51,7 +52,7 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 	PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
 	s := serialize.SerializeData(t)
 	h := Crypto.Hash(s)
-	return Crypto.Verify(signature,PublicKey,h[:]) && Crypto.VerifyPoW(t,4)
+	return Crypto.Verify(signature,PublicKey,h[:]) && Crypto.VerifyPoW(t,2)
 }
 
 

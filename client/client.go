@@ -13,9 +13,7 @@ import (
 )
 
 
-func GenerateMessage(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
-	hash := Crypto.Hash(b)
-	signature := Crypto.Sign(hash[:],PrivateKey)
+func GenerateMessage(b []byte, signature []byte) []byte {
 	var l uint32
 	l = uint32(len(b))
 	var magic_number uint32
@@ -35,6 +33,12 @@ func BroadcastTransaction(b []byte, p dt.Peers) {
 	p.Mux.Unlock()
 }
 
+func GenerateSignature(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
+	hash := Crypto.Hash(b)
+	signature := Crypto.Sign(hash[:],PrivateKey)
+	return signature
+}
+
 func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag dt.DAG) {
 
 	var tx dt.Transaction
@@ -46,11 +50,11 @@ func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag dt.DAG) {
 		copyLedger := dag
 		copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyLedger,0.1)))
 		copy(tx.RightTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyLedger,0.1)))
-		Crypto.PoW(&tx,4)
-		//fmt.Println("Selected Tips")
-		storage.AddTransaction(dag,tx)
+		Crypto.PoW(&tx,2)
 		buffer := serialize.SerializeData(tx)
-		msg := GenerateMessage(buffer,PrivateKey)
+		sign := GenerateSignature(buffer,PrivateKey)
+		msg := GenerateMessage(buffer,sign)
+		storage.AddTransaction(dag,tx,sign)
 		BroadcastTransaction(msg,p)
 		time.Sleep(time.Second)
 	}
