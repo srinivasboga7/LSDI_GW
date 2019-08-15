@@ -39,7 +39,7 @@ func GenerateSignature(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
 	return signature
 }
 
-func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag dt.DAG) {
+func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG) {
 
 	var tx dt.Transaction
 
@@ -47,9 +47,10 @@ func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag dt.DAG) {
 		tx.Timestamp = time.Now().Unix()
 		tx.Value = rand.Float64()
 		copy(tx.From[:],Crypto.SerializePublicKey(&PrivateKey.PublicKey))
-		copyLedger := dag
-		copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyLedger,0.1)))
-		copy(tx.RightTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyLedger,0.1)))
+		dag.Mux.Lock()
+		copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(dag,0.01)))
+		copy(tx.RightTip[:],Crypto.DecodeToBytes(consensus.GetTip(dag,0.01)))
+		dag.Mux.Unlock()
 		Crypto.PoW(&tx,2)
 		buffer := serialize.SerializeData(tx)
 		sign := GenerateSignature(buffer,PrivateKey)

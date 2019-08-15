@@ -10,7 +10,6 @@ import (
 	"GO-DAG/serialize"
 	"encoding/hex"
 	"encoding/pem"
-	"math/big"
 	"os"
 	"strings"
 	"io/ioutil"
@@ -124,20 +123,14 @@ func Sign(hash []byte, key *ecdsa.PrivateKey) []byte {
 	}
 	r,s,_ := ecdsa.Sign(rand.Reader,key,hash)
 
-	signature = r.Bytes()
-	signature = append(signature,s.Bytes()...)
+	signature = serialize.PointsToDER(r,s)
 	return signature
 }
 
 func Verify(signature []byte , PublicKey *ecdsa.PublicKey, hash []byte) bool {
-	if len(signature) != 64 {
-		fmt.Println("Invalid Signature")
-		return false
-	}
-	r := new(big.Int)
-	s := new(big.Int)
-	r.SetBytes(signature[:32])
-	s.SetBytes(signature[32:])
+	
+	r,s := serialize.PointsFromDER(signature)
 
-	return ecdsa.Verify(PublicKey,hash,r,s)
+	v := ecdsa.Verify(PublicKey,hash,r,s)
+	return v
 }
