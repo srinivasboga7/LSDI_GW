@@ -32,7 +32,15 @@ type Node struct {
 }
 
 type DAG struct {
-	Mux sync.Mutex
+	Mux sync.RWMutex
 	Genisis string
 	Graph map[string] Node // string is the hash of the transaction(Node.Tx)
+}
+
+type RequestTx struct {
+	Hash string
+}
+
+type RequestConnection struct {
+	IP string
 }
