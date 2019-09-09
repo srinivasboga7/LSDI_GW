@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"encoding/asn1"
 	"encoding/binary"
-	"encoding/json"
+	//"encoding/json"
 	dt "GO-DAG/DataTypes"
 	"fmt"
 )
@@ -49,17 +49,6 @@ func DeserializeTransaction(b []byte) (dt.Transaction,[]byte) {
 	return tx,signature
 }
 
-
-func SerializeDag(dag dt.DAG) []byte {
-	serial,_ := json.Marshal(dag.Graph)
-	return serial
-}
-
-func DeserializeDag(serial []byte) map[string]dt.Node {
-	Graph := make(map[string] dt.Node)
-	json.Unmarshal(serial,&Graph)
-	return Graph
-}
 
 func canonicalizeInt(val *big.Int) []byte {
 	b := val.Bytes()
