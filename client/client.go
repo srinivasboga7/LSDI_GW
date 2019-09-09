@@ -9,7 +9,7 @@ import (
 	"GO-DAG/consensus"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
-	//"fmt"
+	"fmt"
 )
 
 
@@ -25,8 +25,8 @@ func GenerateMessage(b []byte, signature []byte) []byte {
 }
 
 
-func BroadcastTransaction(b []byte, p dt.Peers) {
-	p.Mux.Lock() // lock for thr Peers datastructure
+func BroadcastTransaction(b []byte, p *dt.Peers) {
+	p.Mux.Lock()
 	for _,conn := range p.Fds {
 		conn.Write(b)
 	}
@@ -39,9 +39,21 @@ func GenerateSignature(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
 	return signature
 }
 
-func SimulateClient(p dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG) {
+func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG) {
 
 	var tx dt.Transaction
+
+	for {
+		p.Mux.Lock()
+		l := len(p.Fds)
+		p.Mux.Unlock()
+		if l > 0 {
+			break
+		}
+		time.Sleep(2*time.Second)
+	}
+
+	fmt.Println("Generating Transactions")
 
 	for {
 		tx.Timestamp = time.Now().Unix()
