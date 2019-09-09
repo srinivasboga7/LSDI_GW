@@ -116,19 +116,19 @@ func LoadKeys() *ecdsa.PrivateKey {
 
 func Sign(hash []byte, key *ecdsa.PrivateKey) []byte {
 	// returns the serialized form of the signature
-	var signature []byte
+	var signature [72]byte
 	if len(hash) != 32 { // check the length of hash
 		fmt.Println("Invalid hash")
-		return signature
+		return signature[:]
 	}
 	r,s,_ := ecdsa.Sign(rand.Reader,key,hash)
 
-	signature = serialize.PointsToDER(r,s)
-	return signature
+	copy(signature[:],serialize.PointsToDER(r,s))
+	return signature[:]
 }
 
 func Verify(signature []byte , PublicKey *ecdsa.PublicKey, hash []byte) bool {
-	
+
 	r,s := serialize.PointsFromDER(signature)
 
 	v := ecdsa.Verify(PublicKey,hash,r,s)
