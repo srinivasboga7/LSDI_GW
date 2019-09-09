@@ -1,32 +1,60 @@
-package discovery
+package Discovery
 
 import (
-	"io/ioutil"
-	"strings"
+	//"io/ioutil"
+	//"strings"
 	"net"
-	dt "GO-DAG/DataTypes/datatypes.go"
+	//dt "GO-DAG/DataTypes"
+	//"log"
+	"fmt"
+	"time"
+	"encoding/json"
+	"strings"
 )
 
-func GetIps(filename string) []string {
+type Request struct {
+	// NumberOfPeers int
+	NodeType string
+}
+
+func GetIps(Addrs string) []string {
 	//Returns slice which has IPs as strings
 	//Currently getting from file
 	//Later get from DNS server or anything else
-	bytes, err := ioutil.ReadFile(filename)
+	tcpAddr, _ := net.ResolveTCPAddr("tcp4", Addrs)
+	conn,_ := net.DialTCP("tcp",nil,tcpAddr)
+	var req Request
+	req.NodeType = "GatewayNode"
+	request,err := json.Marshal(req)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
-	dataslice := strings.Split(string(bytes),"\n")
-	dataslice = dataslice[:len(dataslice)-1]         //Delete last entry from slice as it will be empty
-	return dataslice
+	conn.Write(request)
+	buf := make([]byte,1024)
+	l,_ := conn.Read(buf)
+	var IPList []string
+	err = json.Unmarshal(buf[:l],&IPList)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(IPList)
+	return IPList
 }
 
-func ConnectToServer(ips []string)(dt.Peers) {
+func ConnectToServer(ips []string) (map[string] net.Conn) {
 	//Takes a map of ips to socket file descriptors of tcp connections
-	var p dt.Peers
+	p := make(map[string] net.Conn)
 	for _,ip := range ips {
 		tcpAddr, _ := net.ResolveTCPAddr("tcp4", ip)
-		conn, _ := net.DialTCP("tcp", nil, tcpAddr)    //BLocking call
-		p.Fds[ip] = conn
+		for {
+			conn,err := net.DialTCP("tcp", nil, tcpAddr)    //BLocking call
+			if err == nil {
+				ip = ip[:strings.IndexByte(ip,':')]
+				p[ip] = conn
+				break
+			}
+			time.Sleep(time.Second)
+		}
 	}
 	return p
 }
