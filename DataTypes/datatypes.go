@@ -12,6 +12,7 @@ type Transaction struct {
 	Timestamp int64
 	Value float64 //could be a string but have to figure out serialization
 	From [65]byte //length of public key 33(compressed) or 65(uncompressed)
+	Txid [16]byte
 	//Ntips uint16
 	//Tips [Ntips][32]byte
 	LeftTip [32]byte
