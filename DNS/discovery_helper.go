@@ -15,6 +15,7 @@ type ActiveNodes struct {
 	Mux sync.Mutex 
 	GatewayNodeAddrs []string
 	StorageNodeAddrs []string
+	AllNodeAddrs []string
 }
 
 func main() {
@@ -46,23 +47,51 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 	fmt.Println(req.NodeType)
 	var randomnodes []string 
 	if req.NodeType == "StorageNode" {
-		return
+		nodes.Mux.Lock()
+		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
+		ActiveNodes_gateway := len(nodes.GatewayNodeAddrs)
+		var perm1 []int
+		var perm2 []int
+		if ActiveNodes_storage != 0 {
+			if ActiveNodes_gateway != 0 {
+				perm1 = rand.Perm(ActiveNodes_storage)
+				perm2 = rand.Perm(ActiveNodes_gateway)
+				randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+				randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
+			} else {
+				perm1 = rand.Perm(ActiveNodes_storage)
+				if ActiveNodes_storage > 1 {
+					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[1]])
+				} else {
+					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+				}
+			}
+		}
+		reply,_ := json.Marshal(randomnodes)
+		conn.Write(reply)
+		nodes.StorageNodeAddrs = append(nodes.StorageNodeAddrs,ip)
+		nodes.AllNodeAddrs = append(nodes.AllNodeAddrs,ip)
+		nodes.Mux.Unlock()
+		conn.Close()
 	} else if req.NodeType == "GatewayNode"{
 		nodes.Mux.Lock()
-		ActiveNodes := len(nodes.GatewayNodeAddrs)
+		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
+		ActiveNodes_gateway := len(nodes.GatewayNodeAddrs)
 		var perm []int
-		if ActiveNodes != 0 {
-			perm = rand.Perm(ActiveNodes)
-			if ActiveNodes > 1 {
-				randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm[0]])
-				randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm[1]])
+		if ActiveNodes_storage + ActiveNodes_gateway != 0 {
+			perm = rand.Perm(ActiveNodes_storage + ActiveNodes_gateway)
+			if ActiveNodes_storage + ActiveNodes_gateway > 1 {
+				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[0]])
+				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[1]])
 			} else {
-				randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm[0]])
+				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[0]])
 			}
 		}
 		reply,_ := json.Marshal(randomnodes)
 		conn.Write(reply)
 		nodes.GatewayNodeAddrs = append(nodes.GatewayNodeAddrs,ip)
+		nodes.AllNodeAddrs = append(nodes.AllNodeAddrs,ip)
 		nodes.Mux.Unlock()
 		conn.Close()
 	} else {
