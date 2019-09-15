@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
+	"os"
 )
 
 func main() {
@@ -39,5 +40,6 @@ func main() {
 	fmt.Println("connection established with all peers")
 	PrivateKey := Crypto.GenerateKeys()
 	var url string
+	url = os.Args[1]
 	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }

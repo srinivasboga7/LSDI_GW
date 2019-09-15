@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"math/rand"
 	dt "GO-DAG/DataTypes"
 	"time"
 	"net/http"
@@ -18,10 +17,10 @@ import (
 
 type sensordata struct {
 	sensorName string
-	sensorID [32]byte
-	value float64
-	startTime int64
-	endTime int64
+	sensorID string
+	data string
+	start int64
+	SmID string
 }
 
 type postRequest struct {
@@ -71,18 +70,19 @@ func Copy(dag *dt.DAG) *dt.DAG {
 }
 
 func fakeSensorData(data *sensordata) {
-	data.value = rand.Float64()
-	data.startTime = time.Now().Unix() - 5
-	data.endTime = time.Now().Unix() 
+	data.start = time.Now().Unix()
 }
 
 // SimulateClient is used for testing by sending fake data as transactions.
 func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url string) {
 
 	var tx dt.Transaction
-	var data sensordata
-	data.sensorName = "PowerReading"
-	data.sensorID = Crypto.Hash(Crypto.SerializePublicKey(&PrivateKey.PublicKey))
+	var fakeData sensordata
+	fakeData.sensorName = "livingroom-sensor"
+	ID := Crypto.Hash(Crypto.SerializePublicKey(&PrivateKey.PublicKey))
+	fakeData.sensorID = string(ID[:])
+	fakeData.SmID = "29042884"
+	fakeData.data = "lighton"
 
 	for {
 		p.Mux.Lock()
@@ -97,13 +97,13 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 	fmt.Println("Generating Transactions")
 
 	for {
-		fakeSensorData(&data)
+		fakeSensorData(&fakeData)
 		tx.Timestamp = time.Now().Unix()
-		serial,_ := json.Marshal(data)
+		serial,_ := json.Marshal(fakeData)
 		tx.Hash = Crypto.Hash(serial)
 		tx.TxID = uuid.New()
 		var request postRequest 
-		request.data = data
+		request.data = fakeData
 		request.ID = tx.TxID
 		b := bytes.NewReader(serial)
 		http.Post(url,"application/json",b)

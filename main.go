@@ -12,6 +12,7 @@ import (
 	"net"
 	"fmt"
 	"time"
+	"os"
 	"math/rand"
 )
 
@@ -36,7 +37,7 @@ func main() {
 	fmt.Println("DAG synced")
 	PrivateKey := Crypto.GenerateKeys()
 	var url string
-	url = "http://192.168./"
+	url = os.Args[1]
 	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
 
