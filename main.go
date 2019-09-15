@@ -19,7 +19,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	var dag dt.DAG
 	var peers dt.Peers
-	dag.Graph = make(map[string] dt.Node)
+	dag.Graph = make(map[string] dt.Vertex)
 	peers.Fds = make(map[string] net.Conn)
 	var srv server.Server
 	srv.Peers = &peers
@@ -75,7 +75,7 @@ func CopyDAG(dag *dt.DAG, p *dt.Peers) {
 		buf := make([]byte,1024)
 		l,_ := conn.Read(buf)
 		tx,sign := serialize.DeserializeTransaction(buf[:l])
-		var node dt.Node
+		var node dt.Vertex
 		node.Tx = tx
 		node.Signature = sign
 		dag.Mux.Lock()

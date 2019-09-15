@@ -2,20 +2,20 @@ package storage
 
 import(
 	dt "GO-DAG/DataTypes"
-	"fmt"
+	// "fmt"
 	"GO-DAG/serialize"
 	"GO-DAG/Crypto"
 	"sync"
 )
 
-var OrphanedTransactions = make(map[string]dt.Node)
+var OrphanedTransactions = make(map[string]dt.Vertex)
 var Mux sync.Mutex 
 
 
 func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) bool {
 
 	// change this function for the storage node
-	var node dt.Node
+	var node dt.Vertex
 	var duplicationCheck bool
 	duplicationCheck = false
 	s := serialize.SerializeData(tx)
@@ -32,11 +32,9 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) bool {
 		r,ok_r := dag.Graph[right]
 		if !ok_l || !ok_r {
 			if !ok_l {
-				OrphanedTransactions[left] = node
-				fmt.Println("Orphaned Transactions")	
+				OrphanedTransactions[left] = node	
 			}
 			if !ok_r {
-				fmt.Println("Orphaned Transactions")
 				OrphanedTransactions[right] = node
 			}
 		} else {

@@ -3,7 +3,6 @@ package server
 import(
 	"fmt"
 	"net"
-	//"time"
 	"encoding/binary"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/Crypto"
@@ -13,12 +12,13 @@ import(
 	"strings"
 )
 
+
 type Server struct {
 	Peers *dt.Peers
 	Dag *dt.DAG
 }
 
-func GetKeys(Graph map[string]dt.Node) []string {
+func GetKeys(Graph map[string]dt.Vertex) []string {
 	var keys []string
 	for k,v := range Graph {
 		if len(v.Neighbours) < 2 {
@@ -48,16 +48,16 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 		var buf []byte
 		buf1 := make([]byte,8) // reading the header 
 		_,err := connection.Read(buf1)
-		magic_number := binary.LittleEndian.Uint32(buf1[:4]) 
+		magicNumber := binary.LittleEndian.Uint32(buf1[:4]) 
 		// specifies the type of the message
-		if magic_number == 1 { 
+		if magicNumber == 1 { 
 			length := binary.LittleEndian.Uint32(buf1[4:8])
 			buf2 := make([]byte,length+72)
 			l,_ := connection.Read(buf2)
 			buf = append(buf1,buf2[:l]...)
-		} else if magic_number == 2 {
+		} else if magicNumber == 2 {
 			buf = buf1
-		} else if magic_number == 3 {
+		} else if magicNumber == 3 {
 			buf2 := make([]byte,36)
 			l,_ := connection.Read(buf2)
 			buf = append(buf1,buf2[:l]...)
@@ -79,8 +79,8 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 
 
 func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
-	magic_number := binary.LittleEndian.Uint32(data[:4])
-	if magic_number == 1 {
+	magicNumber := binary.LittleEndian.Uint32(data[:4])
+	if magicNumber == 1 {
 		tx,sign := serialize.DeserializeTransaction(data[4:])
 		if ValidTransaction(tx,sign) { 
 			// maybe wasting verifying duplicate transactions, 
@@ -89,13 +89,13 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 				srv.ForwardTransaction(data,IP)
 			}
 		}
-	} else if magic_number == 2 {
+	} else if magicNumber == 2 {
 		// request to give the hashes of tips 
 		srv.Dag.Mux.Lock()
 		ser,_ := json.Marshal(GetKeys(srv.Dag.Graph))
 		srv.Dag.Mux.Unlock()
 		connection.Write(ser)
-	} else if magic_number == 3 {
+	} else if magicNumber == 3 {
 		// request to give transactions based on tips
 		hash := data[4:36]
 		str := Crypto.EncodeToHex(hash)
@@ -108,7 +108,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		reply = append(reply,sign...)
 		reply = append(serialize.EncodeToBytes(l),reply...)
 		connection.Write(reply)
-	} else if magic_number == 4{
+	} else if magicNumber == 4{
 		// Not relevant but given hash it responds with hashes of neighbours
 		hash := data[4:36]
 		str := Crypto.EncodeToHex(hash)

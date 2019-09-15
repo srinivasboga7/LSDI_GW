@@ -17,15 +17,14 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	var dag dt.DAG
 	var peers dt.Peers
-	dag.Graph = make(map[string] dt.Node)
+	dag.Graph = make(map[string] dt.Vertex)
 	peers.Fds = make(map[string] net.Conn)
 	var genisis dt.Transaction
 	genisis.Timestamp = time.Now().Unix()
-	genisis.Value = 7
 	s := serialize.SerializeData(genisis)
 	h := Crypto.Hash(s)
 	dag.Genisis = Crypto.EncodeToHex(h[:])
-	var node dt.Node
+	var node dt.Vertex
 	node.Tx = genisis
 	dag.Graph[dag.Genisis] = node
 	var srv server.Server
