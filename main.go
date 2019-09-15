@@ -32,18 +32,20 @@ func main() {
 	peers.Mux.Unlock()
 	fmt.Println("connection established with all peers")
 	time.Sleep(time.Second)
-	CopyDAG(&dag,&peers)
+	copyDAG(&dag,&peers)
 	fmt.Println("DAG synced")
 	PrivateKey := Crypto.GenerateKeys()
-	client.SimulateClient(&peers,PrivateKey,&dag)
+	var url string
+	url = "http://192.168./"
+	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
 
 
-func CopyDAG(dag *dt.DAG, p *dt.Peers) {
+func copyDAG(dag *dt.DAG, p *dt.Peers) {
 	// copy only the tips of the DAG.
-	var magic_number uint32
-	magic_number = 2
-	b := serialize.EncodeToBytes(magic_number)
+	var magicNumber uint32
+	magicNumber = 2
+	b := serialize.EncodeToBytes(magicNumber)
 	var conn net.Conn
 	var txs []string
 	p.Mux.Lock()
@@ -65,8 +67,8 @@ func CopyDAG(dag *dt.DAG, p *dt.Peers) {
 	}
 	p.Mux.Unlock()
 	fmt.Println(len(txs))
-	magic_number = 3
-	num := serialize.EncodeToBytes(magic_number)
+	magicNumber = 3
+	num := serialize.EncodeToBytes(magicNumber)
 	var v string
 	for _,v = range txs {
 		hash := Crypto.DecodeToBytes(v)

@@ -38,5 +38,6 @@ func main() {
 	peers.Mux.Unlock()
 	fmt.Println("connection established with all peers")
 	PrivateKey := Crypto.GenerateKeys()
-	client.SimulateClient(&peers,PrivateKey,&dag)
+	var url string
+	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
