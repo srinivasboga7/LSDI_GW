@@ -16,12 +16,12 @@ import (
 )
 
 type sensordata struct {
+	Data string
 	SensorName string
 	//SensorID string
-	Data string
+	SmID string
 	Start int64
 	//End int64
-	SmID string
 }
 
 type postRequest struct {
@@ -121,6 +121,6 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		msg := GenerateMessage(buffer,sign)
 		storage.AddTransaction(dag,tx,sign)
 		BroadcastTransaction(msg,p)
-		time.Sleep(1*time.Second)
+		time.Sleep(5*time.Second)
 	}
 }

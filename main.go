@@ -14,6 +14,7 @@ import (
 	"time"
 	"os"
 	"math/rand"
+	"strings"
 )
 
 func main() {
@@ -33,7 +34,7 @@ func main() {
 	peers.Mux.Unlock()
 	fmt.Println("connection established with all peers")
 	time.Sleep(time.Second)
-	copyDAG(&dag,&peers)
+	copyDAG(&dag,&peers,peers.Fds[ips[0][:strings.IndexByte(ips[0],':')]])
 	fmt.Println("DAG synced")
 	PrivateKey := Crypto.GenerateKeys()
 	var url string
@@ -42,30 +43,24 @@ func main() {
 }
 
 
-func copyDAG(dag *dt.DAG, p *dt.Peers) {
+func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	// copy only the tips of the DAG.
 	var magicNumber uint32
 	magicNumber = 2
 	b := serialize.EncodeToBytes(magicNumber)
-	var conn net.Conn
 	var txs []string
 	p.Mux.Lock()
-	for _,conn = range p.Fds {
-		conn.Write(b)
-		var ser []byte
-		for { 
-			buf := make([]byte,1024)
-			l,_ := conn.Read(buf)
-			ser = append(ser,buf[:l]...)
-			if l < 1024 {
-				break
-			}
-		}
-		json.Unmarshal(ser,&txs)
-		if len(txs) != 0 {
+	conn.Write(b)
+	var ser []byte
+	for { 
+		buf := make([]byte,1024)
+		l,_ := conn.Read(buf)
+		ser = append(ser,buf[:l]...)
+		if l < 1024 {
 			break
 		}
 	}
+	json.Unmarshal(ser,&txs)
 	p.Mux.Unlock()
 	fmt.Println(len(txs))
 	magicNumber = 3

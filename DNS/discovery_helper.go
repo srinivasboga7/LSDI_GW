@@ -15,7 +15,6 @@ type ActiveNodes struct {
 	Mux sync.Mutex 
 	GatewayNodeAddrs []string
 	StorageNodeAddrs []string
-	AllNodeAddrs []string
 }
 
 func main() {
@@ -71,27 +70,33 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 		reply,_ := json.Marshal(randomnodes)
 		conn.Write(reply)
 		nodes.StorageNodeAddrs = append(nodes.StorageNodeAddrs,ip)
-		nodes.AllNodeAddrs = append(nodes.AllNodeAddrs,ip)
+		fmt.Println(nodes.StorageNodeAddrs)
+		fmt.Println(nodes.GatewayNodeAddrs)
 		nodes.Mux.Unlock()
 		conn.Close()
 	} else if req.NodeType == "GatewayNode"{
 		nodes.Mux.Lock()
 		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
 		ActiveNodes_gateway := len(nodes.GatewayNodeAddrs)
-		var perm []int
-		if ActiveNodes_storage + ActiveNodes_gateway != 0 {
-			perm = rand.Perm(ActiveNodes_storage + ActiveNodes_gateway)
-			if ActiveNodes_storage + ActiveNodes_gateway > 1 {
-				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[0]])
-				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[1]])
-			} else {
-				randomnodes = append(randomnodes,nodes.AllNodeAddrs[perm[0]])
+		var perm1 []int
+		var perm2 []int
+		if ActiveNodes_gateway == 0 {
+			perm1 = rand.Perm(ActiveNodes_storage)
+			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+			if ActiveNodes_storage>1 {
+				randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[1]])
 			}
+		} else {
+			perm1 = rand.Perm(ActiveNodes_storage)
+			perm2 = rand.Perm(ActiveNodes_gateway)
+			randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
+			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
 		}
 		reply,_ := json.Marshal(randomnodes)
 		conn.Write(reply)
 		nodes.GatewayNodeAddrs = append(nodes.GatewayNodeAddrs,ip)
-		nodes.AllNodeAddrs = append(nodes.AllNodeAddrs,ip)
+		fmt.Println(nodes.StorageNodeAddrs)
+		fmt.Println(nodes.GatewayNodeAddrs)
 		nodes.Mux.Unlock()
 		conn.Close()
 	} else {
