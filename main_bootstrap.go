@@ -20,13 +20,13 @@ func main() {
 	var peers dt.Peers
 	dag.Graph = make(map[string] dt.Vertex)
 	peers.Fds = make(map[string] net.Conn)
-	var genisis dt.Transaction
-	genisis.Timestamp = time.Now().Unix()
-	s := serialize.SerializeData(genisis)
+	var genesis dt.Transaction
+	copy(genesis.TxID[:],[]byte("1234567812345678"))
+	s := serialize.SerializeData(genesis)
 	h := Crypto.Hash(s)
 	dag.Genisis = Crypto.EncodeToHex(h[:])
 	var node dt.Vertex
-	node.Tx = genisis
+	node.Tx = genesis
 	dag.Graph[dag.Genisis] = node
 	var srv server.Server
 	srv.Peers = &peers

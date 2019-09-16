@@ -16,16 +16,17 @@ import (
 )
 
 type sensordata struct {
-	sensorName string
-	sensorID string
-	data string
-	start int64
+	SensorName string
+	//SensorID string
+	Data string
+	Start int64
+	//End int64
 	SmID string
 }
 
 type postRequest struct {
-	data sensordata
-	ID [16]byte
+	Meter sensordata
+	TxID string
 }
 
 // GenerateMessage creates a byte slice to be sent over a network
@@ -70,7 +71,7 @@ func Copy(dag *dt.DAG) *dt.DAG {
 }
 
 func fakeSensorData(data *sensordata) {
-	data.start = time.Now().Unix()
+	data.Start = time.Now().Unix()
 }
 
 // SimulateClient is used for testing by sending fake data as transactions.
@@ -78,11 +79,11 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 
 	var tx dt.Transaction
 	var fakeData sensordata
-	fakeData.sensorName = "livingroom-sensor"
+	fakeData.SensorName = "livingroom-sensor"
 	ID := Crypto.Hash(Crypto.SerializePublicKey(&PrivateKey.PublicKey))
-	fakeData.sensorID = string(ID[:])
-	fakeData.SmID = "29042884"
-	fakeData.data = "lighton"
+	//fakeData.SensorID = string(ID[:])
+	fakeData.SmID = Crypto.EncodeToHex(ID[:])
+	fakeData.Data = "lighton"
 
 	for {
 		p.Mux.Lock()
@@ -99,12 +100,13 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 	for {
 		fakeSensorData(&fakeData)
 		tx.Timestamp = time.Now().Unix()
-		serial,_ := json.Marshal(fakeData)
-		tx.Hash = Crypto.Hash(serial)
+		s,_ := json.Marshal(fakeData)
+		tx.Hash = Crypto.Hash(s)
 		tx.TxID = uuid.New()
 		var request postRequest 
-		request.data = fakeData
-		request.ID = tx.TxID
+		request.Meter = fakeData
+		request.TxID = Crypto.EncodeToHex(tx.TxID[:])
+		serial,_ := json.Marshal(request)
 		b := bytes.NewReader(serial)
 		http.Post(url,"application/json",b)
 		copy(tx.From[:],Crypto.SerializePublicKey(&PrivateKey.PublicKey))
@@ -119,6 +121,6 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		msg := GenerateMessage(buffer,sign)
 		storage.AddTransaction(dag,tx,sign)
 		BroadcastTransaction(msg,p)
-		time.Sleep(5*time.Second)
+		time.Sleep(1*time.Second)
 	}
 }
