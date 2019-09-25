@@ -41,5 +41,9 @@ func main() {
 	PrivateKey := Crypto.GenerateKeys()
 	var url string
 	url = os.Args[1]
-	client.SimulateClient(&peers,PrivateKey,&dag,url)
+	var cli client.Client
+	cli.Peers = &peers
+	cli.Dag = &dag
+	cli.PrivateKey = PrivateKey
+	cli.RecieveSensorData(url)
 }

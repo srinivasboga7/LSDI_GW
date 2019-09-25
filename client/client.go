@@ -13,7 +13,14 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"bytes"
+	"net"
 )
+
+type Client struct {
+	PrivateKey *ecdsa.PrivateKey
+	Dag *dt.DAG
+	Peers *dt.Peers
+}
 
 type sensordata struct {
 	Data string
@@ -25,7 +32,7 @@ type sensordata struct {
 }
 
 type postRequest struct {
-	Meter sensordata
+	serialData []byte
 	TxID string
 }
 
@@ -70,20 +77,12 @@ func Copy(dag *dt.DAG) *dt.DAG {
 	return &copyDag
 }
 
-func fakeSensorData(data *sensordata) {
-	data.Start = time.Now().Unix()
-}
 
+/*
 // SimulateClient is used for testing by sending fake data as transactions.
 func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url string) {
 
 	var tx dt.Transaction
-	var fakeData sensordata
-	fakeData.SensorName = "livingroom-sensor"
-	ID := Crypto.Hash(Crypto.SerializePublicKey(&PrivateKey.PublicKey))
-	//fakeData.SensorID = string(ID[:])
-	fakeData.SmID = Crypto.EncodeToHex(ID[:])
-	fakeData.Data = "lighton"
 
 	for {
 		p.Mux.Lock()
@@ -121,6 +120,66 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		msg := GenerateMessage(buffer,sign)
 		storage.AddTransaction(dag,tx,sign)
 		BroadcastTransaction(msg,p)
-		time.Sleep(5*time.Second)
+		time.Sleep(time.Second)
+	}
+}
+*/
+
+func (cli *Client)createTransaction(data []byte) []byte{
+	privateKey := cli.PrivateKey
+	var tx dt.Transaction
+	tx.Timestamp = time.Now().Unix()
+	tx.Hash = Crypto.Hash(data)
+	tx.TxID = uuid.New()
+	var request postRequest 
+	request.serialData = data
+	request.TxID = Crypto.EncodeToHex(tx.TxID[:])
+	serial,_ := json.Marshal(request)
+	copy(tx.From[:],Crypto.SerializePublicKey(&privateKey.PublicKey))
+	cli.Dag.Mux.Lock()
+	copyDag := Copy(cli.Dag)
+	cli.Dag.Mux.Unlock()
+	copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyDag,0.01)))
+	copy(tx.RightTip[:],Crypto.DecodeToBytes(consensus.GetTip(copyDag,0.01)))
+	Crypto.PoW(&tx,2)
+	buffer := serialize.SerializeData(tx)
+	sign := GenerateSignature(buffer,privateKey)
+	msg := GenerateMessage(buffer,sign)
+	storage.AddTransaction(cli.Dag,tx,sign)
+	BroadcastTransaction(msg,cli.Peers)
+	return serial
+}
+
+func (cli *Client)handleConnection(conn net.Conn,url string) {
+	for {
+		buf := make([]byte,1024)
+		l,err := conn.Read(buf)
+		if(err != nil) {
+			break;
+		}
+		cloudData := bytes.NewReader(cli.createTransaction(buf[:l]))
+		http.Post(url,"application/json",cloudData)
+	}
+	defer conn.Close()
+}
+
+
+// RecieveSensorData is a method called in the main
+func (cli *Client)RecieveSensorData(url string) {
+	p := cli.Peers
+	for {
+		p.Mux.Lock()
+		l := len(p.Fds)
+		p.Mux.Unlock()
+		if l > 0 {
+			break
+		}
+		time.Sleep(2*time.Second)
+	}
+	fmt.Println("Starting Generating Transactions")
+	listener,_ := net.Listen("tcp",":8050")
+	for {
+		conn,_ := listener.Accept()
+		go cli.handleConnection(conn,url)
 	}
 }
