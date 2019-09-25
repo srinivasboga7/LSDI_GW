@@ -99,6 +99,17 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 		fmt.Println(nodes.GatewayNodeAddrs)
 		nodes.Mux.Unlock()
 		conn.Close()
+	} else if req.NodeType == "UserNode"{
+		nodes.Mux.Lock()
+		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
+		var perm1 []int
+		perm1 = rand.Perm(ActiveNodes_storage)
+		var randomNode string
+		randomNode = nodes.StorageNodeAddrs[perm1[0]]
+		nodes.Mux.Unlock()
+		reply := []byte(randomNode)
+		conn.Write(reply)
+		conn.Close()
 	} else {
 		return
 	}
