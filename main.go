@@ -8,9 +8,10 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/Discovery"
 	"GO-DAG/storage"
+	log "GO-DAG/logdump"
 	"encoding/json"
 	"net"
-	"fmt"
+	"log"
 	"time"
 	"os"
 	"math/rand"
@@ -28,23 +29,30 @@ func main() {
 	srv.Dag = &dag
 	go srv.StartServer()
 	time.Sleep(time.Second)
-	ips := Discovery.GetIps("192.168.122.190:8000")
+	log.Println("requesting discovery node for peers")
+	ips := Discovery.GetIps("169.254.175.29:8000")
+	log.Println("connecting to the peers")
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
-	fmt.Println("connection established with all peers")
 	time.Sleep(time.Second)
+	log.Println("connection established with all peers")
+	log.Println("syncing the blockchain with other peer")
 	copyDAG(&dag,&peers,peers.Fds[ips[0][:strings.IndexByte(ips[0],':')]])
-	fmt.Println("DAG synced")
-	PrivateKey := Crypto.GenerateKeys()
+	log.Println("blockchain synced")
 	var url string
 	url = os.Args[1]
 	var cli client.Client
 	cli.Peers = &peers
 	cli.Dag = &dag
-	cli.PrivateKey = PrivateKey
+	if !Crypto.CheckForKeys() {
+		cli.PrivateKey = Crypto.GenerateKeys()
+	} else {
+		cli.PrivateKey = Crypto.LoadKeys()
+	}
+	log.Println("")
 	cli.RecieveSensorData(url)
-	// client.SimulateClient(&peers,PrivateKey,&dag,url)
+	//client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
 
 
@@ -58,7 +66,13 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	var ser []byte
 	for { 
 		buf := make([]byte,1024)
-		l,_ := conn.Read(buf)
+		l,err := conn.Read(buf)
+		if err != nil {
+			log.Println(err)
+			addr := conn.RemoteAddr().String()
+			ip := addr[:strings.IndexByte(addr,':')]
+			log.Println(ip)
+		}
 		ser = append(ser,buf[:l]...)
 		if l < 1024 {
 			break
@@ -66,7 +80,7 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	}
 	json.Unmarshal(ser,&txs)
 	p.Mux.Unlock()
-	fmt.Println(len(txs))
+	log.Println(len(txs))
 	magicNumber = 3
 	num := serialize.EncodeToBytes(magicNumber)
 	var v string
@@ -85,7 +99,7 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 		dag.Mux.Lock()
 		if tx.LeftTip == tip && tx.RightTip == tip {
 			dag.Genisis = v
-			fmt.Println("Genisis Transaction")
+			// log.Println("Genisis Transaction")
 		}
 		dag.Graph[v] = vertex
 		dag.Mux.Unlock()

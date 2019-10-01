@@ -1,6 +1,7 @@
 package main
 
 import (
+	"time"
 	"net"
 	"log"
 	"sync"
@@ -18,6 +19,7 @@ type ActiveNodes struct {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	var nodes ActiveNodes
 	Listener,err := net.Listen("tcp",":8000")
 	if err != nil {
@@ -76,6 +78,8 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 		conn.Close()
 	} else if req.NodeType == "GatewayNode"{
 		nodes.Mux.Lock()
+		AllNodes := append(nodes.GatewayNodeAddrs,nodes.StorageNodeAddrs...)
+		ActiveNodes := len(AllNodes)
 		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
 		ActiveNodes_gateway := len(nodes.GatewayNodeAddrs)
 		var perm1 []int
@@ -83,14 +87,23 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 		if ActiveNodes_gateway == 0 {
 			perm1 = rand.Perm(ActiveNodes_storage)
 			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
-			if ActiveNodes_storage>1 {
+			if ActiveNodes_storage > 1 {
 				randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[1]])
 			}
-		} else {
+		} else if ActiveNodes_gateway == 1 {
 			perm1 = rand.Perm(ActiveNodes_storage)
 			perm2 = rand.Perm(ActiveNodes_gateway)
 			randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
 			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+		} else {
+			perm1 = rand.Perm(ActiveNodes)
+			perm2 = rand.Perm(ActiveNodes_gateway)
+			randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
+			if randomnodes[0] == AllNodes[perm1[0]] {
+				randomnodes = append(randomnodes,AllNodes[perm1[1]])
+			} else {
+				randomnodes = append(randomnodes,AllNodes[perm1[0]])
+			}
 		}
 		reply,_ := json.Marshal(randomnodes)
 		conn.Write(reply)

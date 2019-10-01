@@ -1,17 +1,17 @@
 package server
 
 import(
-	"fmt"
+	// "fmt"
 	"net"
 	"encoding/binary"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
+	log "GO-DAG/logdump"
 	"GO-DAG/storage"
 	"encoding/json"
 	"strings"
 )
-
 
 type Server struct {
 	Peers *dt.Peers
@@ -20,10 +20,8 @@ type Server struct {
 
 func GetKeys(Graph map[string]dt.Vertex) []string {
 	var keys []string
-	for k,v := range Graph {
-		if len(v.Neighbours) < 2 {
-			keys = append(keys,k)
-		}
+	for k:= range Graph {
+		keys = append(keys,k)
 	}
 	return keys
 }
@@ -37,24 +35,28 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 	if _,ok := srv.Peers.Fds[ip] ; !ok {
 		c,e := net.Dial("tcp",ip+":9000")
 		if e != nil {
-			fmt.Println("Connection Unsuccessful")
+			log.Println("Connection Unsuccessful")
 		} else {
 			srv.Peers.Fds[ip] = c
-			fmt.Println("Connection Successful")
+			log.Println("connection request from a new peer")
 		}
 	}
 	srv.Peers.Mux.Unlock()
 	for {
 		var buf []byte
 		buf1 := make([]byte,8) // reading the header 
-		_,err := connection.Read(buf1)
+		headerLen,err := connection.Read(buf1)
 		magicNumber := binary.LittleEndian.Uint32(buf1[:4]) 
 		// specifies the type of the message
-		if magicNumber == 1 { 
-			length := binary.LittleEndian.Uint32(buf1[4:8])
-			buf2 := make([]byte,length+72)
-			l,_ := connection.Read(buf2)
-			buf = append(buf1,buf2[:l]...)
+		if magicNumber == 1 {
+			if headerLen < 8 {
+				log.Println("message broken")
+			} else {
+				length := binary.LittleEndian.Uint32(buf1[4:8])
+				buf2 := make([]byte,length+72)
+				l,_ := connection.Read(buf2)
+				buf = append(buf1,buf2[:l]...)
+			}
 		} else if magicNumber == 2 {
 			buf = buf1
 		} else if magicNumber == 3 {
@@ -67,11 +69,11 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 			srv.Peers.Mux.Lock()
 			delete(srv.Peers.Fds,ip)
 			srv.Peers.Mux.Unlock()
-			fmt.Println(err)
+			// fmt.Println(err)
 			break
 		}
 		if len(buf) > 0 {
-			go srv.HandleRequests(connection,buf,ip)
+			srv.HandleRequests(connection,buf,ip)
 		}
 	}
 	defer connection.Close()
@@ -82,14 +84,20 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 	magicNumber := binary.LittleEndian.Uint32(data[:4])
 	if magicNumber == 1 {
 		tx,sign := serialize.DeserializeTransaction(data[4:])
-		if ValidTransaction(tx,sign) { 
+		if ValidTransaction(tx,sign) {
 			// maybe wasting verifying duplicate transactions, 
 			// instead verify signatures and PoW while tip selection
-			if storage.AddTransaction(srv.Dag,tx,sign) {
+			ok := storage.AddTransaction(srv.Dag,tx,sign)
+			if ok > 0{
+				log.Println("Recieved Transaction " + Crypto.EncodeToHex(tx.TxID[:]))
+				log.Println("transaction verified")
+				log.Println("transaction added to the DAG")
+				log.Println("forwarding transaction to other peers")
 				srv.ForwardTransaction(data,IP)
 			}
 		}
 	} else if magicNumber == 2 {
+		log.Println("peer requesting transactions to sync")
 		// request to give the hashes of tips 
 		srv.Dag.Mux.Lock()
 		ser,_ := json.Marshal(GetKeys(srv.Dag.Graph))
@@ -117,7 +125,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		srv.Dag.Mux.Unlock()
 		connection.Write(reply) 
 	} else {
-		fmt.Println("Failed Request")
+		log.Println("Failed Request")
 	}
 }
 
@@ -130,16 +138,16 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 	h := Crypto.Hash(s)
 	sigVerify := Crypto.Verify(signature,PublicKey,h[:])
 	if sigVerify == false {
-		fmt.Println("Invalid signature")
+		log.Println("Invalid signature")
 	}
-	return sigVerify && Crypto.VerifyPoW(t,2)
+	return sigVerify && Crypto.VerifyPoW(t,4)
 	//return Crypto.VerifyPoW(t,2)
 }
 
 
 func (srv *Server)ForwardTransaction(t []byte, IP string) {
 	// sending the transaction to the peers excluding the one it came from
-	//fmt.Println("Relayed to other peers")	
+	//log.Println("Relayed to other peers")	
 	srv.Peers.Mux.Lock()
 	for k,conn := range srv.Peers.Fds {
 		if k != IP {
@@ -157,5 +165,4 @@ func (srv *Server)StartServer() {
  		go srv.HandleConnection(conn) 
  		// go routine executes concurrently
 	}
-	defer listener.Close()
 }

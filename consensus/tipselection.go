@@ -87,7 +87,7 @@ func GetKeysValuesFromMap_float64(mymap map[string] float64) ([]string, []float6
 
 func IsTip(Ledger dt.DAG, Transaction string) bool {     
 	//Checks if the Given transaction is a tip or not
-	if len(Ledger.Graph[Transaction].Neighbours) < 1 {  
+	if len(Ledger.Graph[Transaction].Neighbours) < 2 {  
 		//If the neighbours slice is empty then the tx is tip
 		return true
 	} else {
@@ -149,6 +149,7 @@ func RatingtoWeights(Rating map[string] int, alpha float64) map[string] float64 
 	//Returns the weights a map of hashes of transaction to the float64 weight value
 }
 
+// GetEntryPoint returns a tip from which we perform backtrack
 func GetEntryPoint(Tips []string) string {
 	var EntryPoint string
 	var Perm []int
@@ -157,14 +158,15 @@ func GetEntryPoint(Tips []string) string {
 	return EntryPoint
 }
 
-func BackTrack(Ratings map[string] int, Threshhold int, dag dt.DAG, startingPoint string) string{
+// BackTrack returns a point whose cumilative weight is greater than threshold
+func BackTrack(Ratings map[string] int, Threshhold int, Graph map[string] dt.Vertex, Genisis string,startingPoint string) string{
 	current := startingPoint
 	for {
-		if(Ratings[current] > Threshhold || current == dag.Genisis) {
+		if(Ratings[current] > Threshhold || current == Genisis) {
 			break
 		}
-		tx := dag.Graph[current].Tx
-		if _,ok := dag.Graph[EncodeToHex(tx.LeftTip[:])] ; !ok {
+		tx := Graph[current].Tx
+		if _,ok := Graph[EncodeToHex(tx.LeftTip[:])] ; !ok {
 			break
 		}
 		current = EncodeToHex(tx.LeftTip[:])
@@ -172,6 +174,7 @@ func BackTrack(Ratings map[string] int, Threshhold int, dag dt.DAG, startingPoin
 	return current;
 } 
 
+// NextStep returns the pointer to the next transaction in random walk
 func NextStep(Ledger dt.DAG, Transaction string, Weights map[string] float64) string {  
 	//Returns the hash of transaction of the next step to be taken in random walk
 	var values []float64
@@ -191,6 +194,8 @@ func NextStep(Ledger dt.DAG, Transaction string, Weights map[string] float64) st
 	return NextTx
 }
 
+
+// RandomWalk is an Implementation of IOTA's MCMC algorithm
 func RandomWalk(Ledger dt.DAG, LatestMilestone string, Weights map[string]float64) string {  
 	//Returns the tip when given a milestone transaction
 	CurrentTransaction := LatestMilestone
@@ -201,20 +206,22 @@ func RandomWalk(Ledger dt.DAG, LatestMilestone string, Weights map[string]float6
 	return CurrentTransaction
 }
 
+// GetAllTips returns all the tips in the graph
 func GetAllTips (Graph map[string] dt.Vertex ) []string {
 	var Tips []string
 	for k,v := range Graph {
-		if len(v.Neighbours) < 1 {
+		if len(v.Neighbours) < 2 {
 			Tips = append(Tips,k)
 		} 
 	}
 	return Tips
 }
 
+// GetTip returns the tip after a random walk from a point chosen by BackTrack
 func GetTip(Ledger *dt.DAG, alpha float64) string {
 	Rating := CalculateRating(*Ledger,Ledger.Genisis)
 	Weights := RatingtoWeights(Rating,alpha)
-	start := BackTrack(Rating,100,*Ledger,GetEntryPoint(GetAllTips(Ledger.Graph)))
+	start := BackTrack(Rating,50,Ledger.Graph,Ledger.Genisis,GetEntryPoint(GetAllTips(Ledger.Graph)))
 	Tip := RandomWalk(*Ledger,start,Weights)
 	/*
 	if Rating[Ledger.Genisis] > SnapshotInterval {
