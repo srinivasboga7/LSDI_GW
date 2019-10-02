@@ -28,17 +28,19 @@ func main() {
 	srv.Dag = &dag
 	go srv.StartServer()
 	time.Sleep(time.Second)
-	log.Println("requesting discovery node for peers")
+	log.Println("REQUESTING DISCOVERY NODE FOR PEERS")
 	ips := Discovery.GetIps("169.254.175.29:8000")
-	log.Println("connecting to the peers")
+	log.Println("CONNECTING WITH PEERS")
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
 	time.Sleep(time.Second)
-	log.Println("connection established with all peers")
-	log.Println("syncing the blockchain with other peer")
+	log.Println("CONNECTION ESTABLISHED WITH ALL PEERS")
+	log.Println("STARTING P2P NETWORKING")
+	log.Println("STARTING TO SYNC BLOCKCHAIN")
 	copyDAG(&dag,&peers,peers.Fds[ips[0][:strings.IndexByte(ips[0],':')]])
-	log.Println("blockchain synced")
+	log.Println("BLOCKCHAIN SYNCED")
+	log.DefaultPrint("==========================================")
 	var url string
 	url = os.Args[1]
 	var cli client.Client
@@ -49,7 +51,7 @@ func main() {
 	} else {
 		cli.PrivateKey = Crypto.LoadKeys()
 	}
-	log.Println("")
+	log.Println("GATEWAY NODE ACTIVE")
 	cli.RecieveSensorData(url)
 	//client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
@@ -65,13 +67,7 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	var ser []byte
 	for { 
 		buf := make([]byte,1024)
-		l,err := conn.Read(buf)
-		if err != nil {
-			//log.Println(err)
-			//addr := conn.RemoteAddr().String()
-			//ip := addr[:strings.IndexByte(addr,':')]
-			//log.Println(ip)
-		}
+		l,_ := conn.Read(buf)
 		ser = append(ser,buf[:l]...)
 		if l < 1024 {
 			break
@@ -79,7 +75,6 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	}
 	json.Unmarshal(ser,&txs)
 	p.Mux.Unlock()
-	//log.Println(len(txs))
 	magicNumber = 3
 	num := serialize.EncodeToBytes(magicNumber)
 	var v string

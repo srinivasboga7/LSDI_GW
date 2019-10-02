@@ -36,10 +36,10 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 	if _,ok := srv.Peers.Fds[ip] ; !ok {
 		c,e := net.Dial("tcp",ip+":9000")
 		if e != nil {
-			log.Println("Connection Unsuccessful")
+			log.Println("CONNECTION UNSUCCESSFUL")
 		} else {
 			srv.Peers.Fds[ip] = c
-			log.Println("connection request from a new peer")
+			log.Println("CONNECTION REQUEST FROM A NEW PEER")
 		}
 	}
 	srv.Peers.Mux.Unlock()
@@ -90,18 +90,20 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 			// instead verify signatures and PoW while tip selection
 			ok := storage.AddTransaction(srv.Dag,tx,sign)
 			if ok > 0{
-				log.Println("recieved transaction Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
-				time.Sleep(1*time.Second)
-				log.Println("transaction verified Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
-				time.Sleep(1*time.Second)
-				log.Println("transaction added to the DAG Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
-				time.Sleep(1*time.Second)
-				log.Println("forwarding transaction to other peers Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
+				log.DefaultPrint("===========================================================================")
+				log.Println("RECIEVED TRANSACTION " + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("TRANSACTION VERIFIED " + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("TRANSACTION ADDED TO DAG" + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("FORWARDING TRANSACTION TO OTHER PEERS" + Crypto.EncodeToHex(tx.TxID[:]))
+				log.DefaultPrint("===========================================================================")
 				srv.ForwardTransaction(data,IP)
 			}
 		}
 	} else if magicNumber == 2 {
-		log.Println("peer requesting transactions to sync")
+		log.Println("PEER REQUESTING TRANSACTION TO SYNC")
 		// request to give the hashes of tips 
 		srv.Dag.Mux.Lock()
 		ser,_ := json.Marshal(GetKeys(srv.Dag.Graph))
@@ -129,7 +131,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		srv.Dag.Mux.Unlock()
 		connection.Write(reply) 
 	} else {
-		log.Println("Failed Request")
+		log.Println("FAILED REQUEST")
 	}
 }
 
@@ -142,7 +144,7 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 	h := Crypto.Hash(s)
 	sigVerify := Crypto.Verify(signature,PublicKey,h[:])
 	if sigVerify == false {
-		log.Println("Invalid signature")
+		log.Println("INVALID SIGNATURE")
 	}
 	return sigVerify && Crypto.VerifyPoW(t,4)
 	//return Crypto.VerifyPoW(t,2)
