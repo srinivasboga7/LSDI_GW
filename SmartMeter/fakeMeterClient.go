@@ -33,7 +33,7 @@ func main() {
 }
 
 func simulteSmartMeter(conn net.Conn) {
-	fmt.Println("generating fake smart meter data")
+	fmt.Println("GENERATING FAKE SMARTMETER DATA")
 	var fakeData sensordata
 	fakeData.Data = "lighton"
 	fakeData.SensorName = "livingroom-sensor"
@@ -53,7 +53,7 @@ func simulteSmartMeter(conn net.Conn) {
 		buf := new(bytes.Buffer)
 		binary.Write(buf,binary.LittleEndian, l)
 		msg = append(buf.Bytes(),msg...)
-		fmt.Println("sending data to the gateway")
+		fmt.Println("SENDING DATA TO GATEWAY")
 		conn.Write(msg)
 		time.Sleep(30*time.Second)
 	}

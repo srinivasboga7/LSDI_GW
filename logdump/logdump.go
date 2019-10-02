@@ -18,6 +18,11 @@ func Println(msg string) {
 	fmt.Println("",msg)
 }
 
+// DefaultPrint is a wrapeer around Println in fmt package
+func DefaultPrint(msg string) {
+	fmt.Println(msg)
+}
+
 /*
 func main() {
 	Print("Hello,World !")

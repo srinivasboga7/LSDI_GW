@@ -2,6 +2,7 @@ package server
 
 import(
 	// "fmt"
+	"time"
 	"net"
 	"encoding/binary"
 	dt "GO-DAG/DataTypes"
@@ -89,10 +90,15 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 			// instead verify signatures and PoW while tip selection
 			ok := storage.AddTransaction(srv.Dag,tx,sign)
 			if ok > 0{
-				log.Println("Recieved Transaction " + Crypto.EncodeToHex(tx.TxID[:]))
-				log.Println("transaction verified")
-				log.Println("transaction added to the DAG")
-				log.Println("forwarding transaction to other peers")
+				log.DefaultPrint("===========================================================================")
+				log.Println("RECIEVED TRANSACTION " + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("TRANSACTION VERIFIED " + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("TRANSACTION ADDED TO DAG" + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(time.Second)
+				log.Println("FORWARDING TRANSACTION TO OTHER PEERS" + Crypto.EncodeToHex(tx.TxID[:]))
+				log.DefaultPrint("===========================================================================")
 				srv.ForwardTransaction(data,IP)
 			}
 		}
