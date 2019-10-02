@@ -97,6 +97,7 @@ func (cli *Client)createTransaction(data []byte, url string) {
 	b := bytes.NewReader(serial)
 	log.Println("forwarding smart meter data to the cloud")
 	http.Post(url,"application/json",b)
+	time.Sleep(time.Second)
 	log.Println("creating transaction with the hash of smart meter data")
 	copy(tx.From[:],Crypto.SerializePublicKey(&privateKey.PublicKey))
 	log.Println("performing tip selection")

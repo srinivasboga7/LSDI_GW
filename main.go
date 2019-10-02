@@ -11,7 +11,6 @@ import (
 	log "GO-DAG/logdump"
 	"encoding/json"
 	"net"
-	"log"
 	"time"
 	"os"
 	"math/rand"
@@ -68,10 +67,10 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 		buf := make([]byte,1024)
 		l,err := conn.Read(buf)
 		if err != nil {
-			log.Println(err)
-			addr := conn.RemoteAddr().String()
-			ip := addr[:strings.IndexByte(addr,':')]
-			log.Println(ip)
+			//log.Println(err)
+			//addr := conn.RemoteAddr().String()
+			//ip := addr[:strings.IndexByte(addr,':')]
+			//log.Println(ip)
 		}
 		ser = append(ser,buf[:l]...)
 		if l < 1024 {
@@ -80,7 +79,7 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	}
 	json.Unmarshal(ser,&txs)
 	p.Mux.Unlock()
-	log.Println(len(txs))
+	//log.Println(len(txs))
 	magicNumber = 3
 	num := serialize.EncodeToBytes(magicNumber)
 	var v string

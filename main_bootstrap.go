@@ -8,10 +8,10 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/Discovery"
 	"net"
-	"fmt"
 	"time"
 	"math/rand"
 	"os"
+	log "GO-DAG/logdump"
 )
 
 func main() {
@@ -33,13 +33,13 @@ func main() {
 	srv.Dag = &dag
 	go srv.StartServer()
 	time.Sleep(time.Second)
-	fmt.Println("requesting discovery node for peers")
+	log.Println("requesting discovery node for peers")
 	ips := Discovery.GetIps("169.254.175.29:8000")
-	fmt.Println("connecting to the peers")
+	log.Println("connecting to the peers")
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
-	fmt.Println("connection established with all peers")
+	log.Println("connection established with all peers")
 	var url string
 	url = os.Args[1]
 	var cli client.Client
@@ -50,7 +50,7 @@ func main() {
 	} else {
 		cli.PrivateKey = Crypto.LoadKeys()
 	}
-	fmt.Println("gateway node active")
+	log.Println("gateway node active")
 	cli.RecieveSensorData(url)
 	//client.SimulateClient(&peers,PrivateKey,&dag,url)
 }

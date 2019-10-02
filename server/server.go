@@ -91,8 +91,11 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 			ok := storage.AddTransaction(srv.Dag,tx,sign)
 			if ok > 0{
 				log.Println("recieved transaction Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(1*time.Second)
 				log.Println("transaction verified Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(1*time.Second)
 				log.Println("transaction added to the DAG Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
+				time.Sleep(1*time.Second)
 				log.Println("forwarding transaction to other peers Tx-" + Crypto.EncodeToHex(tx.TxID[:]))
 				srv.ForwardTransaction(data,IP)
 			}
