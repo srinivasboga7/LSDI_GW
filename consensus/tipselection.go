@@ -97,12 +97,12 @@ func IsTip(Ledger dt.DAG, Transaction string) bool {
 
 func SelectSubgraph(Ledger dt.DAG, LatestMilestone string) []string {  
 	//Returns the Subgraph transactions hashes as a slice
-	SelectedSubGraph,_ := GetFutureSet_new(Ledger,LatestMilestone)
+	SelectedSubGraph,_ := GetFutureSet_new(Ledger.Graph,LatestMilestone)
 	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
 	return SelectedSubGraph
 }
 
-func GetFutureSet_new(dag dt.DAG,Transaction string) ([]string,int) {
+func GetFutureSet_new(Graph map[string] dt.Vertex,Transaction string) ([]string,int) {
 	// BFS of the DAG to get the future set
 	var queue []string
 	queue = append(queue,Transaction)
@@ -111,7 +111,7 @@ func GetFutureSet_new(dag dt.DAG,Transaction string) ([]string,int) {
 		if count == len(queue) {
 			break
 		}
-		tx := dag.Graph[queue[count]]
+		tx := Graph[queue[count]]
 		for _,v := range tx.Neighbours {
 			if !contains(queue,v) {
 				queue = append(queue,v)
@@ -128,7 +128,7 @@ func CalculateRating(Ledger dt.DAG,LatestMilestone string) map[string] int {
 	//fmt.Println(SubGraph)
 	Rating := make(map[string] int)
 	for _,transaction := range(SubGraph) {
-		_,LengthFutureSet := GetFutureSet_new(Ledger,transaction)
+		_,LengthFutureSet := GetFutureSet_new(Ledger.Graph,transaction)
 		Rating[transaction] = LengthFutureSet + 1       
 		//Rating is the length of the future set of the transaction + 1
 	}
@@ -159,10 +159,12 @@ func GetEntryPoint(Tips []string) string {
 }
 
 // BackTrack returns a point whose cumilative weight is greater than threshold
-func BackTrack(Ratings map[string] int, Threshhold int, Graph map[string] dt.Vertex, Genisis string,startingPoint string) string{
+func BackTrack(Threshhold int, Graph map[string] dt.Vertex, Genisis string,startingPoint string) string{
 	current := startingPoint
+	var rating int 
 	for {
-		if(Ratings[current] > Threshhold || current == Genisis) {
+		_,rating = GetFutureSet_new(Graph,current)
+		if(rating > Threshhold || current == Genisis) {
 			break
 		}
 		tx := Graph[current].Tx
@@ -219,9 +221,9 @@ func GetAllTips (Graph map[string] dt.Vertex ) []string {
 
 // GetTip returns the tip after a random walk from a point chosen by BackTrack
 func GetTip(Ledger *dt.DAG, alpha float64) string {
-	Rating := CalculateRating(*Ledger,Ledger.Genisis)
+	start := BackTrack(50,Ledger.Graph,Ledger.Genisis,GetEntryPoint(GetAllTips(Ledger.Graph)))
+	Rating := CalculateRating(*Ledger,start)
 	Weights := RatingtoWeights(Rating,alpha)
-	start := BackTrack(Rating,50,Ledger.Graph,Ledger.Genisis,GetEntryPoint(GetAllTips(Ledger.Graph)))
 	Tip := RandomWalk(*Ledger,start,Weights)
 	/*
 	if Rating[Ledger.Genisis] > SnapshotInterval {
