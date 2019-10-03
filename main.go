@@ -38,15 +38,9 @@ func main() {
 	peers.Mux.Unlock()
 	time.Sleep(time.Second)
 	log.Println("CONNECTION ESTABLISHED WITH ALL PEERS")
-<<<<<<< HEAD
-	log.DefaultPrint("==========================================")
-	log.Println("STARTING P2P NETWORKING")
-	log.Println("STARTING TO SYNC BLOCKCHAIN")
-=======
 	fmt.Println()
 	log.Println("STARTING TO SYNC DAG")
 	fmt.Println()
->>>>>>> 495a1d25c7e9852b5e30558f64fbfc7a75a1df33
 	copyDAG(&dag,&peers,peers.Fds[ips[0][:strings.IndexByte(ips[0],':')]])
 	log.Println("DAG SYNCED")
 	fmt.Println()
