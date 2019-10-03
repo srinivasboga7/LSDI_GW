@@ -12,6 +12,7 @@ import(
 	"GO-DAG/storage"
 	"encoding/json"
 	"strings"
+	"fmt"
 )
 
 type Server struct {
@@ -36,10 +37,12 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 	if _,ok := srv.Peers.Fds[ip] ; !ok {
 		c,e := net.Dial("tcp",ip+":9000")
 		if e != nil {
-			log.Println("Connection Unsuccessful")
+			log.Println("CONNECTION UNSUCCESSFUL")
+			fmt.Println()
 		} else {
 			srv.Peers.Fds[ip] = c
-			log.Println("connection request from a new peer")
+			log.Println("CONNECTION REQUEST FROM A NEW PEER")
+			fmt.Println()
 		}
 	}
 	srv.Peers.Mux.Unlock()
@@ -52,6 +55,7 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 		if magicNumber == 1 {
 			if headerLen < 8 {
 				log.Println("message broken")
+				fmt.Println()
 			} else {
 				length := binary.LittleEndian.Uint32(buf1[4:8])
 				buf2 := make([]byte,length+72)
@@ -91,19 +95,30 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 			ok := storage.AddTransaction(srv.Dag,tx,sign)
 			if ok > 0{
 				log.DefaultPrint("===========================================================================")
-				log.Println("RECIEVED TRANSACTION " + Crypto.EncodeToHex(tx.TxID[:]))
+				fmt.Println()
+				log.Println("RECIEVED TRANSACTION ") 
+				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				fmt.Println()
 				time.Sleep(time.Second)
-				log.Println("TRANSACTION VERIFIED " + Crypto.EncodeToHex(tx.TxID[:]))
+				log.Println("TRANSACTION VERIFIED ")
+				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				fmt.Println()
 				time.Sleep(time.Second)
-				log.Println("TRANSACTION ADDED TO DAG" + Crypto.EncodeToHex(tx.TxID[:]))
+				log.Println("TRANSACTION ADDED TO DAG ")
+				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				fmt.Println()
 				time.Sleep(time.Second)
-				log.Println("FORWARDING TRANSACTION TO OTHER PEERS" + Crypto.EncodeToHex(tx.TxID[:]))
+				log.Println("FORWARDING TRANSACTION TO OTHER PEERS ")
+				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				fmt.Println()
 				log.DefaultPrint("===========================================================================")
+				fmt.Println()
 				srv.ForwardTransaction(data,IP)
 			}
 		}
 	} else if magicNumber == 2 {
-		log.Println("peer requesting transactions to sync")
+		log.Println("PEER REQUESTING TRANSACTION TO SYNC")
+		fmt.Println()
 		// request to give the hashes of tips 
 		srv.Dag.Mux.Lock()
 		ser,_ := json.Marshal(GetKeys(srv.Dag.Graph))
@@ -131,7 +146,8 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		srv.Dag.Mux.Unlock()
 		connection.Write(reply) 
 	} else {
-		log.Println("Failed Request")
+		log.Println("FAILED REQUEST")
+		fmt.Println()
 	}
 }
 
@@ -144,7 +160,8 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 	h := Crypto.Hash(s)
 	sigVerify := Crypto.Verify(signature,PublicKey,h[:])
 	if sigVerify == false {
-		log.Println("Invalid signature")
+		log.Println("INVALID SIGNATURE")
+		fmt.Println()
 	}
 	return sigVerify && Crypto.VerifyPoW(t,4)
 	//return Crypto.VerifyPoW(t,2)

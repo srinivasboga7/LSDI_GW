@@ -13,18 +13,29 @@ func Println(msg string) {
 	fmt.Printf("INFO ")
 	color.Unset()
 	color.Set(color.FgMagenta)
-	fmt.Printf(time.Now().Format("15:04:05")) 
+	fmt.Printf(time.Now().Format("15:04:05 ")) 
 	color.Unset()
-	fmt.Println("",msg)
+	fmt.Print(msg)
 }
 
 // DefaultPrint is a wrapeer around Println in fmt package
-func DefaultPrint(msg string) {
-	fmt.Println(msg)
+func DefaultPrintBlue(a ...interface{}) {
+	color.Set(color.FgBlue)
+	fmt.Print(a...)
+	color.Unset()
 }
 
-/*
-func main() {
-	Print("Hello,World !")
+func DefaultPrint(a ...interface{}) {
+	fmt.Print(a...)
 }
-*/
+
+func Printtx(msg string) {
+	color.Set(color.FgBlue)
+	fmt.Printf(msg)
+	color.Unset()
+}
+
+
+// func main() {
+// 	DefaultPrintBlue("Hello,World !")
+// }
