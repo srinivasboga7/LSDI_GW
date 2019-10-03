@@ -12,7 +12,7 @@ import (
 	"time"
 	"math/rand"
 	"os"
-	log "GO-DAG/logdump"
+	"fmt"
 )
 
 func main() {
@@ -35,13 +35,15 @@ func main() {
 	go srv.StartServer()
 	time.Sleep(time.Second)
 	log.Println("REQUESTING DISCOVERY NODE FOR PEERS")
+	fmt.Println()
 	ips := Discovery.GetIps("169.254.175.29:8000")
 	log.Println("CONNECTING WITH PEERS")
+	fmt.Println()
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
 	log.Println("CONNECTION ESTABLISHED WITH ALL PEERS")
-	log.Println("STARTING P2P NETWORKING")
+	fmt.Println()
 	var url string
 	url = os.Args[1]
 	var cli client.Client
@@ -53,6 +55,7 @@ func main() {
 		cli.PrivateKey = Crypto.LoadKeys()
 	}
 	log.Println("GATEWAY NODE ACTIVE")
+	fmt.Println()
 	cli.RecieveSensorData(url)
 	//client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
