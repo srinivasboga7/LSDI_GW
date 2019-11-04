@@ -36,7 +36,7 @@ func main() {
 	peers.Mux.Lock()
 	peers.Fds = Discovery.ConnectToServer(ips)
 	peers.Mux.Unlock()
-	time.Sleep(time.Second)
+	//time.Sleep(time.Second)
 	log.Println("CONNECTION ESTABLISHED WITH ALL PEERS")
 	fmt.Println()
 	log.Println("STARTING TO SYNC DAG")
@@ -48,6 +48,7 @@ func main() {
 	fmt.Println()
 	var url string
 	url = os.Args[1]
+	/*
 	var cli client.Client
 	cli.Peers = &peers
 	cli.Dag = &dag
@@ -59,7 +60,14 @@ func main() {
 	log.Println("GATEWAY NODE ACTIVE")
 	fmt.Println()
 	cli.RecieveSensorData(url)
-	//client.SimulateClient(&peers,PrivateKey,&dag,url)
+	*/
+	var PrivateKey Crypto.PrivateKey
+	if !Crypto.CheckForKeys() {
+		PrivateKey = Crypto.GenerateKeys()
+	} else {
+		PrivateKey = Crypto.LoadKeys()
+	}
+	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }
 
 

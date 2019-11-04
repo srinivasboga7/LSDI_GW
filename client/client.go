@@ -1,3 +1,4 @@
+/*
 package client
 
 import (
@@ -182,7 +183,8 @@ func (cli *Client)RecieveSensorData(url string) {
 	}
 }
 
-/*
+*/
+
 package client
 
 import (
@@ -261,7 +263,6 @@ func fakeSensorData(data *sensordata) {
 
 // SimulateClient is used for testing by sending fake data as transactions.
 func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url string) {
-	consensus.SnapshotInterval = 1000
 	var tx dt.Transaction
 	var fakeData sensordata
 	fakeData.SensorName = "livingroom-sensor"
@@ -308,4 +309,3 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		time.Sleep(time.Second)
 	}
 }
-*/

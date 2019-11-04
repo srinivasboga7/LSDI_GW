@@ -2,13 +2,13 @@ package server
 
 import(
 	// "fmt"
-	"time"
+	// "time"
 	"net"
 	"encoding/binary"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
-	log "GO-DAG/logdump"
+	//log "GO-DAG/logdump"
 	"GO-DAG/storage"
 	"encoding/json"
 	"strings"
@@ -37,11 +37,11 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 	if _,ok := srv.Peers.Fds[ip] ; !ok {
 		c,e := net.Dial("tcp",ip+":9000")
 		if e != nil {
-			log.Println("CONNECTION UNSUCCESSFUL")
+			//log.Println("CONNECTION UNSUCCESSFUL")
 			fmt.Println()
 		} else {
 			srv.Peers.Fds[ip] = c
-			log.Println("CONNECTION REQUEST FROM A NEW PEER")
+			//log.Println("CONNECTION REQUEST FROM A NEW PEER")
 			fmt.Println()
 		}
 	}
@@ -54,7 +54,7 @@ func (srv *Server) HandleConnection(connection net.Conn) {
 		// specifies the type of the message
 		if magicNumber == 1 {
 			if headerLen < 8 {
-				log.Println("message broken")
+				//log.Println("message broken")
 				fmt.Println()
 			} else {
 				length := binary.LittleEndian.Uint32(buf1[4:8])
@@ -94,30 +94,30 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 			// instead verify signatures and PoW while tip selection
 			ok := storage.AddTransaction(srv.Dag,tx,sign)
 			if ok > 0{
-				log.DefaultPrint("===========================================================================")
-				fmt.Println()
-				log.Println("RECIEVED TRANSACTION ") 
-				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
-				fmt.Println()
-				time.Sleep(time.Second)
-				log.Println("TRANSACTION VERIFIED ")
-				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
-				fmt.Println()
-				time.Sleep(time.Second)
-				log.Println("TRANSACTION ADDED TO DAG ")
-				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
-				fmt.Println()
-				time.Sleep(time.Second)
-				log.Println("FORWARDING TRANSACTION TO OTHER PEERS ")
-				log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
-				fmt.Println()
-				log.DefaultPrint("===========================================================================")
-				fmt.Println()
+				//log.DefaultPrint("===========================================================================")
+				//fmt.Println()
+				//log.Println("RECIEVED TRANSACTION ") 
+				//log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				//fmt.Println()
+				//time.Sleep(time.Second)
+				//log.Println("TRANSACTION VERIFIED ")
+				//log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				//fmt.Println()
+				//time.Sleep(time.Second)
+				//log.Println("TRANSACTION ADDED TO DAG ")
+				//log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				//fmt.Println()
+				//time.Sleep(time.Second)
+				//log.Println("FORWARDING TRANSACTION TO OTHER PEERS ")
+				//log.DefaultPrintBlue(Crypto.EncodeToHex(tx.TxID[:]))
+				//fmt.Println()
+				//log.DefaultPrint("===========================================================================")
+				//fmt.Println()
 				srv.ForwardTransaction(data,IP)
 			}
 		}
 	} else if magicNumber == 2 {
-		log.Println("PEER REQUESTING TRANSACTION TO SYNC")
+		//log.Println("PEER REQUESTING TRANSACTION TO SYNC")
 		fmt.Println()
 		// request to give the hashes of tips 
 		srv.Dag.Mux.Lock()
@@ -146,7 +146,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		srv.Dag.Mux.Unlock()
 		connection.Write(reply) 
 	} else {
-		log.Println("FAILED REQUEST")
+		//log.Println("FAILED REQUEST")
 		fmt.Println()
 	}
 }
@@ -160,8 +160,8 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 	h := Crypto.Hash(s)
 	sigVerify := Crypto.Verify(signature,PublicKey,h[:])
 	if sigVerify == false {
-		log.Println("INVALID SIGNATURE")
-		fmt.Println()
+		//log.Println("INVALID SIGNATURE")
+		//fmt.Println()
 	}
 	return sigVerify && Crypto.VerifyPoW(t,4)
 	//return Crypto.VerifyPoW(t,2)
@@ -170,7 +170,7 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 
 func (srv *Server)ForwardTransaction(t []byte, IP string) {
 	// sending the transaction to the peers excluding the one it came from
-	//log.Println("Relayed to other peers")	
+	////log.Println("Relayed to other peers")	
 	srv.Peers.Mux.Lock()
 	for k,conn := range srv.Peers.Fds {
 		if k != IP {

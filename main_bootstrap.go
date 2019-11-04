@@ -46,6 +46,7 @@ func main() {
 	fmt.Println()
 	var url string
 	url = os.Args[1]
+	/*
 	var cli client.Client
 	cli.Peers = &peers
 	cli.Dag = &dag
@@ -54,8 +55,16 @@ func main() {
 	} else {
 		cli.PrivateKey = Crypto.LoadKeys()
 	}
-	log.Println("GATEWAY NODE ACTIVE")
+	//log.Println("GATEWAY NODE ACTIVE")
 	fmt.Println()
 	cli.RecieveSensorData(url)
-	//client.SimulateClient(&peers,PrivateKey,&dag,url)
+	*/
+	var PrivateKey Crypto.PrivateKey
+	if !Crypto.CheckForKeys() {
+		PrivateKey = Crypto.GenerateKeys()
+	} else {
+		PrivateKey = Crypto.LoadKeys()
+	}
+
+	client.SimulateClient(&peers,PrivateKey,&dag,url)
 }

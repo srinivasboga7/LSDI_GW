@@ -16,6 +16,8 @@ import (
 	"fmt"
 )
 
+type PrivateKey *ecdsa.PrivateKey
+
 func Hash(b []byte) [32]byte {
 	h := sha256.Sum256(b)
 	return h
