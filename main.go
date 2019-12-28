@@ -44,7 +44,7 @@ func main() {
 	copyDAG(&dag,&peers,peers.Fds[ips[0][:strings.IndexByte(ips[0],':')]])
 	log.Println("DAG SYNCED")
 	fmt.Println()
-	log.DefaultPrint("==========================================")
+	// log.DefaultPrint("==========================================")
 	fmt.Println()
 	var url string
 	url = os.Args[1]
@@ -96,20 +96,25 @@ func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 		hash := Crypto.DecodeToBytes(v)
 		hash = append(num,hash...)
 		conn.Write(hash)
-		buf := make([]byte,1024)
-		l,_ := conn.Read(buf)
-		tx,sign := serialize.DeserializeTransaction(buf[:l])
-		// storage.AddTransaction(dag,tx,sign)
-		var vertex dt.Vertex
-		vertex.Tx = tx
-		vertex.Signature = sign
-		var tip [32]byte 
-		dag.Mux.Lock()
-		if tx.LeftTip == tip && tx.RightTip == tip {
-			dag.Genisis = v
-			// log.Println("Genisis Transaction")
+		bufCheck := make([]byte,1)
+		l,_ := Peers.Fds[r].Read(bufCheck)
+		if Crypto.EncodeToHex(bufCheck) == "1" {
+	    	buf := make([]byte,1024)
+			length,_ := Peers.Fds[r].Read(buf)
+			Peers.Mux.Unlock()
+			tx,sign := serialize.DeserializeTransaction(buf[:length])
+			var vertex dt.Vertex
+			vertex.Tx = tx
+			vertex.Signature = sign
+			var tip [32]byte 
+			dag.Mux.Lock()
+			if tx.LeftTip == tip && tx.RightTip == tip {
+				dag.Genisis = v
+				// log.Println("Genisis Transaction")
+			}
+			dag.Graph[v] = vertex
+			dag.Mux.Unlock()
 		}
-		dag.Graph[v] = vertex
 		dag.Mux.Unlock()
 	}
 	constructDAG(dag)

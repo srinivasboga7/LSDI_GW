@@ -129,22 +129,28 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		hash := data[4:36]
 		str := Crypto.EncodeToHex(hash)
 		srv.Dag.Mux.Lock()
-		tx,sign := srv.Dag.Graph[str].Tx,srv.Dag.Graph[str].Signature
-		srv.Dag.Mux.Unlock()
-		reply := serialize.SerializeData(tx)
-		var l uint32
-		l = uint32(len(reply))
-		reply = append(reply,sign...)
-		reply = append(serialize.EncodeToBytes(l),reply...)
-		connection.Write(reply)
-	} else if magicNumber == 4{
+		if val,ok := srv.Dag.Graph[str]; ok {
+			tx,sign := val.Tx,val.Signature
+			srv.Dag.Mux.Unlock()
+			reply := serialize.SerializeData(tx)
+			var l uint32
+			l = uint32(len(reply))
+			reply = append(reply,sign...)
+			reply = append(serialize.EncodeToBytes(l),reply...)
+			reply = append(serialize.EncodeToBytes("1"),reply...)
+			connection.Write(reply)
+		} else {
+			reply := serialize.EncodeToBytes("0")
+			connection.Write(reply)
+		}
+	} else if magicNumber == 4 {
 		// Not relevant but given hash it responds with hashes of neighbours
 		hash := data[4:36]
 		str := Crypto.EncodeToHex(hash)
 		srv.Dag.Mux.Lock()
 		reply,_ := json.Marshal(srv.Dag.Graph[str].Neighbours)
 		srv.Dag.Mux.Unlock()
-		connection.Write(reply) 
+		connection.Write(reply)
 	} else {
 		//log.Println("FAILED REQUEST")
 		fmt.Println()
