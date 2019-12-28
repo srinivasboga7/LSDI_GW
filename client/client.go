@@ -288,13 +288,6 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		tx.Timestamp = time.Now().Unix()
 		s,_ := json.Marshal(fakeData)
 		tx.Hash = Crypto.Hash(s)
-		tx.TxID = uuid.New()
-		var request postRequest 
-		request.Meter = fakeData
-		request.TxID = Crypto.EncodeToHex(tx.TxID[:])
-		serial,_ := json.Marshal(request)
-		b := bytes.NewReader(serial)
-		http.Post(url,"application/json",b)
 		copy(tx.From[:],Crypto.SerializePublicKey(&PrivateKey.PublicKey))
 		dag.Mux.Lock()
 		copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(dag,0.01)))
@@ -302,9 +295,17 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		dag.Mux.Unlock()
 		Crypto.PoW(&tx,2)
 		buffer := serialize.SerializeData(tx)
+		Txid := Crypto.Hash(buffer)
+		h := Crypto.EncodeToHex(Txid[:])
+		var request postRequest 
+		request.Meter = fakeData
+		request.TxID = h
+		serial,_ := json.Marshal(request)
+		b := bytes.NewReader(serial)
+		http.Post(url,"application/json",b)
 		sign := GenerateSignature(buffer,PrivateKey)
 		msg := GenerateMessage(buffer,sign)
-		storage.AddTransaction(dag,tx,sign)
+		storage.AddTransaction(dag,tx,sign,msg)
 		BroadcastTransaction(msg,p)
 		time.Sleep(time.Second)
 	}

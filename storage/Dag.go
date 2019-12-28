@@ -6,22 +6,22 @@ import(
 	"GO-DAG/serialize"
 	"GO-DAG/Crypto"
 	"sync"
+	badger "github.com/dgraph-io/badger"
 )
 
 var OrphanedTransactions = make(map[string] []dt.Vertex)
 var Mux sync.Mutex 
 
 
-func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) int {
+func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serializedTx []byte) int {
 
 	// change this function for the storage node
 	var node dt.Vertex
 	var duplicationCheck int
 	duplicationCheck = 0
 	s := serialize.SerializeData(tx)
-	hash := Crypto.Hash(s)
-	h := Crypto.EncodeToHex(hash[:])
-
+	Txid := Crypto.Hash(s)
+	h := Crypto.EncodeToHex(Txid[:])
 	dag.Mux.Lock()
 	if _,ok := dag.Graph[h] ; !ok{  //Duplication check
 		node.Tx = tx
@@ -31,6 +31,7 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) int {
 			dag.Genisis = h
 			dag.Graph[h] = node
 			duplicationCheck = 1
+			AddToDb(Txid,serializedTx)
 		} else {
 			left := Crypto.EncodeToHex(tx.LeftTip[:])
 			right := Crypto.EncodeToHex(tx.RightTip[:]) 
@@ -58,6 +59,7 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) int {
 					dag.Graph[Crypto.EncodeToHex(tx.RightTip[:])] = r
 				}
 				duplicationCheck = 1
+				AddToDb(h,serializedTx)
 			}
 		}
 	}
@@ -66,6 +68,21 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte) int {
 		checkOrphanedTransactions(h,dag)
 	}
 	return duplicationCheck
+}
+
+unc AddToDb(Txid []byte, serializedTx []byte]) {	
+	opts := badger.DefaultOptions
+	opts.Dir = ""
+	opts.ValueDir = ""
+	kv, err := badger.NewKV(&opts)
+	if err != nil {
+		panic(err)
+	}
+	defer kv.Close()
+	err = kv.Set(Txid,serializedTx)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func checkOrphanedTransactions(h string,dag *dt.DAG) {

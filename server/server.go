@@ -92,7 +92,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 		if ValidTransaction(tx,sign) {
 			// maybe wasting verifying duplicate transactions, 
 			// instead verify signatures and PoW while tip selection
-			ok := storage.AddTransaction(srv.Dag,tx,sign)
+			ok := storage.AddTransaction(srv.Dag,tx,sign,data[4:])
 			if ok > 0{
 				//log.DefaultPrint("===========================================================================")
 				//fmt.Println()

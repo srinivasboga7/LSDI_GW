@@ -11,7 +11,6 @@ type Transaction struct {
 	Timestamp int64 // 8 bytes
 	Hash [32]byte //could be a string but have to figure out serialization
 	From [65]byte //length of public key 33(compressed) or 65(uncompressed)
-	TxID [16]byte
 	LeftTip [32]byte
 	RightTip [32]byte
 	Nonce uint32 // 4 bytes
