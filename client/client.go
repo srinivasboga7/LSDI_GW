@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"encoding/binary"
 	"encoding/json"
-	dt "GO-DAG/DataTypes"
 	"time"
 	"net/http"
 	"github.com/google/uuid"
@@ -22,8 +21,8 @@ import (
 // Client is declared to be used in main
 type Client struct {
 	PrivateKey *ecdsa.PrivateKey
-	Dag *dt.DAG
-	Peers *dt.Peers
+	Dag *storage.DAG
+	Peers *storage.Peers
 }
 
 type sensordata struct {
@@ -54,7 +53,7 @@ func GenerateMessage(b []byte, signature []byte) []byte {
 }
 
 // BroadcastTransaction sends the transaction to all the peers
-func BroadcastTransaction(b []byte, p *dt.Peers) {
+func BroadcastTransaction(b []byte, p *storage.Peers) {
 	p.Mux.Lock()
 	for _,conn := range p.Fds {
 		conn.Write(b)
@@ -71,11 +70,11 @@ func GenerateSignature(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
 }
 
 // Copy generates the Deep copy of the DAG
-func Copy(dag *dt.DAG) *dt.DAG {
+func Copy(dag *storage.DAG) *storage.DAG {
 	bytes,_ := json.Marshal(dag.Graph)
-	var copyGraph map[string] dt.Vertex
+	var copyGraph map[string] storage.Vertex
 	json.Unmarshal(bytes,&copyGraph)
-	var copyDag dt.DAG
+	var copyDag storage.DAG
 	copyDag.Graph = copyGraph
 	copyDag.Genisis = dag.Genisis
 	return &copyDag
@@ -83,7 +82,7 @@ func Copy(dag *dt.DAG) *dt.DAG {
 
 func (cli *Client)createTransaction(data []byte, url string) {
 	privateKey := cli.PrivateKey
-	var tx dt.Transaction
+	var tx storage.Transaction
 	tx.Timestamp = time.Now().Unix()
 	tx.Hash = Crypto.Hash(data)
 	tx.TxID = uuid.New()
@@ -189,7 +188,6 @@ package client
 
 import (
 	"encoding/json"
-	dt "GO-DAG/DataTypes"
 	"time"
 	"net/http"
 	"github.com/google/uuid"
@@ -197,6 +195,7 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/consensus"
 	"GO-DAG/storage"
+	"GO-DAG/Pow"
 	"crypto/ecdsa"
 	"log"
 	"bytes"
@@ -230,7 +229,7 @@ func GenerateMessage(b []byte, signature []byte) []byte {
 }
 
 // BroadcastTransaction sends the transaction to all the peers
-func BroadcastTransaction(b []byte, p *dt.Peers) {
+func BroadcastTransaction(b []byte, p *storage.Peers) {
 	p.Mux.Lock()
 	for _,conn := range p.Fds {
 		conn.Write(b)
@@ -247,11 +246,11 @@ func GenerateSignature(b []byte, PrivateKey *ecdsa.PrivateKey) []byte {
 }
 
 // Copy generates the Deep copy of the DAG
-func Copy(dag *dt.DAG) *dt.DAG {
+func Copy(dag *storage.DAG) *storage.DAG {
 	bytes,_ := json.Marshal(dag.Graph)
-	var copyGraph map[string] dt.Vertex
+	var copyGraph map[string] storage.Vertex
 	json.Unmarshal(bytes,&copyGraph)
-	var copyDag dt.DAG
+	var copyDag storage.DAG
 	copyDag.Graph = copyGraph
 	copyDag.Genisis = dag.Genisis
 	return &copyDag
@@ -262,8 +261,8 @@ func fakeSensorData(data *sensordata) {
 }
 
 // SimulateClient is used for testing by sending fake data as transactions.
-func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url string) {
-	var tx dt.Transaction
+func SimulateClient(p *storage.Peers, PrivateKey *ecdsa.PrivateKey, dag *storage.DAG, url string) {
+	var tx storage.Transaction
 	var fakeData sensordata
 	fakeData.SensorName = "livingroom-sensor"
 	ID := Crypto.Hash(Crypto.SerializePublicKey(&PrivateKey.PublicKey))
@@ -293,7 +292,7 @@ func SimulateClient(p *dt.Peers, PrivateKey *ecdsa.PrivateKey, dag *dt.DAG, url 
 		copy(tx.LeftTip[:],Crypto.DecodeToBytes(consensus.GetTip(dag,0.01)))
 		copy(tx.RightTip[:],Crypto.DecodeToBytes(consensus.GetTip(dag,0.01)))
 		dag.Mux.Unlock()
-		Crypto.PoW(&tx,2)
+		Pow.PoW(&tx,2)
 		buffer := serialize.SerializeData(tx)
 		Txid := Crypto.Hash(buffer)
 		h := Crypto.EncodeToHex(Txid[:])

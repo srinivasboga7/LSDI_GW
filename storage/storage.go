@@ -5,18 +5,49 @@ import(
 	// "fmt"
 	"GO-DAG/serialize"
 	"GO-DAG/Crypto"
+	db "GO-DAG/database"
 	"sync"
-	badger "github.com/dgraph-io/badger"
+	"net"
 )
 
-var OrphanedTransactions = make(map[string] []dt.Vertex)
+// Transaction DS Transaction structure
+type Transaction struct {
+	Timestamp int64 // 8 bytes
+	Hash [32]byte //could be a string but have to figure out serialization
+	From [65]byte //length of public key 33(compressed) or 65(uncompressed)
+	LeftTip [32]byte
+	RightTip [32]byte
+	Nonce uint32 // 4 bytes
+}
+
+// Peers maintains the list of all peers connected to the node
+type Peers struct {
+	Mux sync.Mutex
+	Fds map[string] net.Conn
+}
+
+// Vertex is a wrapper struct of Transaction 
+type Vertex struct {
+	Tx Transaction
+	Signature []byte
+	Neighbours [] string 
+}
+
+// DAG defines the data structure to store the blockchain
+type DAG struct {
+	Mux sync.Mutex
+	Genisis string
+	Graph map[string] Vertex
+}
+
+var OrphanedTransactions = make(map[string] []Vertex)
 var Mux sync.Mutex 
 
-
-func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serializedTx []byte) int {
+//AddTransaction checks if transaction if already present in the dag, if not adds to dag and database and returns true else returns false
+func AddTransaction(dag *DAG,tx Transaction, signature []byte, serializedTx []byte) int {
 
 	// change this function for the storage node
-	var node dt.Vertex
+	var node Vertex
 	var duplicationCheck int
 	duplicationCheck = 0
 	s := serialize.SerializeData(tx)
@@ -31,7 +62,7 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 			dag.Genisis = h
 			dag.Graph[h] = node
 			duplicationCheck = 1
-			AddToDb(Txid,serializedTx)
+			db.AddToDb(Txid,serializedTx)
 		} else {
 			left := Crypto.EncodeToHex(tx.LeftTip[:])
 			right := Crypto.EncodeToHex(tx.RightTip[:]) 
@@ -59,7 +90,7 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 					dag.Graph[Crypto.EncodeToHex(tx.RightTip[:])] = r
 				}
 				duplicationCheck = 1
-				AddToDb(h,serializedTx)
+				db.AddToDb(h,serializedTx)
 			}
 		}
 	}
@@ -70,22 +101,8 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 	return duplicationCheck
 }
 
-unc AddToDb(Txid []byte, serializedTx []byte]) {	
-	opts := badger.DefaultOptions
-	opts.Dir = ""
-	opts.ValueDir = ""
-	kv, err := badger.NewKV(&opts)
-	if err != nil {
-		panic(err)
-	}
-	defer kv.Close()
-	err = kv.Set(Txid,serializedTx)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func checkOrphanedTransactions(h string,dag *dt.DAG) {
+//checkOrphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
+func checkOrphanedTransactions(h string,dag *DAG) {
 	Mux.Lock()
 	list,ok := OrphanedTransactions[h]
 	Mux.Unlock()
