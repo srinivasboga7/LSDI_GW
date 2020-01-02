@@ -1,27 +1,32 @@
 package storage
 
 import(
-	dt "GO-DAG/DataTypes"
-	// "fmt"
+	dt "GO-DAG/datatypes"
 	"GO-DAG/serialize"
-	"GO-DAG/Crypto"
+	db "GO-DAG/database"
 	"sync"
-	badger "github.com/dgraph-io/badger"
+	"net"
 )
 
-var OrphanedTransactions = make(map[string] []dt.Vertex)
+var OrphanedTransactions = make(map[string] []Vertex)
 var Mux sync.Mutex 
 
+//Hash returns the SHA256 hash value
+func Hash(b []byte) [32]byte {
+	h := sha256.Sum256(b)
+	return h
+}
 
-func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serializedTx []byte) int {
+//AddTransaction checks if transaction if already present in the dag, if not adds to dag and database and returns true else returns false
+func AddTransaction(dag *DAG,tx dt.Transaction, signature []byte, serializedTx []byte) int {
 
 	// change this function for the storage node
 	var node dt.Vertex
 	var duplicationCheck int
 	duplicationCheck = 0
 	s := serialize.SerializeData(tx)
-	Txid := Crypto.Hash(s)
-	h := Crypto.EncodeToHex(Txid[:])
+	Txid := Hash(s)
+	h := serialize.EncodeToHex(Txid[:])
 	dag.Mux.Lock()
 	if _,ok := dag.Graph[h] ; !ok{  //Duplication check
 		node.Tx = tx
@@ -31,10 +36,10 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 			dag.Genisis = h
 			dag.Graph[h] = node
 			duplicationCheck = 1
-			AddToDb(Txid,serializedTx)
+			db.AddToDb(Txid,serializedTx)
 		} else {
-			left := Crypto.EncodeToHex(tx.LeftTip[:])
-			right := Crypto.EncodeToHex(tx.RightTip[:]) 
+			left := serialize.EncodeToHex(tx.LeftTip[:])
+			right := serialize.EncodeToHex(tx.RightTip[:]) 
 			l,okL := dag.Graph[left]
 			r,okR := dag.Graph[right]
 			if !okL || !okR {
@@ -51,15 +56,15 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 				dag.Graph[h] = node
 				if left == right {
 					l.Neighbours = append(l.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
 				} else {
 					l.Neighbours = append(l.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
 					r.Neighbours = append(r.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.RightTip[:])] = r
+					dag.Graph[serialize.EncodeToHex(tx.RightTip[:])] = r
 				}
 				duplicationCheck = 1
-				AddToDb(h,serializedTx)
+				db.AddToDb(h,serializedTx)
 			}
 		}
 	}
@@ -70,22 +75,24 @@ func AddTransaction(dag *dt.DAG,tx dt.Transaction, signature []byte,  serialized
 	return duplicationCheck
 }
 
-unc AddToDb(Txid []byte, serializedTx []byte]) {	
-	opts := badger.DefaultOptions
-	opts.Dir = ""
-	opts.ValueDir = ""
-	kv, err := badger.NewKV(&opts)
-	if err != nil {
-		panic(err)
-	}
-	defer kv.Close()
-	err = kv.Set(Txid,serializedTx)
-	if err != nil {
-		panic(err)
-	}
+//GetTransactiondb Wrapper function for GetTransaction in db module
+func GetTransactiondb(Txid []byte) dt.Transaction,[]byte {
+	stream := db.GetValue(Txid)
+	return serialize.DeserializeTransaction(stream)
 }
 
-func checkOrphanedTransactions(h string,dag *dt.DAG) {
+//checkifPresentDb Wrapper function for CheckKey in db module
+func checkifPresentDb(Txid []byte) bool {
+	return db.CheckKey(Txid)
+}
+
+//GetAllHashes Wrapper function for GetAllKeys in db module
+func GetAllHashes() {
+	return db.GetAllKeys()
+}
+
+//checkOrphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
+func checkOrphanedTransactions(h string,dag *DAG) {
 	Mux.Lock()
 	list,ok := OrphanedTransactions[h]
 	Mux.Unlock()

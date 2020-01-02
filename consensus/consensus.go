@@ -2,18 +2,20 @@ package consensus
 
 import (
 	"fmt"
-	dt "GO-DAG/DataTypes"
+	dt "GO-DAG/datatypes"
+	"GO-DAG/snapshot"
 	"math/rand"
 	"math"
 	"encoding/hex"
-	// "GO-DAG/storage"
+	// "GO-DAG/dt"
 )
 
 func getMax(s []int) int {    
 	//Get maximum value from a slice of integers
 	var maximum int
-	for index, element := range(s) {
-		if index == 0 || element > maximum {
+	maximum = s[0]
+	for _, element := range(s) {
+		if element > maximum {
 			maximum = element
 		}
 	}
@@ -23,8 +25,9 @@ func getMax(s []int) int {
 func getMin(s []int) int {     
 	//Get minimum value from a slice of integers
 	var minimum int
-	for index, element := range(s) {
-		if index == 0 || element > minimum {
+	minimum = s[0]
+	for _, element := range(s) {
+		if element > minimum {
 			minimum = element
 		}
 	}
@@ -53,7 +56,7 @@ func generateRandomNumber(min float64, max float64) float64 {
 
 func contains(s []string, e string) bool {  
 	//Checks if a element(string) is present in the given slice(of strings)
-    for _, element := range s {
+    for _, element := range(s) {
         if element == e {
             return true
         }
@@ -65,7 +68,7 @@ func GetKeysValuesFromMap_int(mymap map[string] int) ([]string, []int){
 	//Get the keys and values from a given type of map seperately as slices
 	keys := make([]string, 0, len(mymap))
 	values := make([]int, 0, len(mymap))
-	for k, v := range mymap {
+	for k, v := range(mymap) {
 		keys = append(keys, k)
 		values = append(values,v)
 	}
@@ -93,13 +96,6 @@ func IsTip(Graph map[string]dt.Vertex, Transaction string) bool {
 	}
 }
 
-func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string {  
-	//Returns the Subgraph transactions hashes as a slice
-	SelectedSubGraph,_ := GetFutureSet_new(Graph,LatestMilestone)
-	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
-	return SelectedSubGraph
-}
-
 func GetFutureSet_new(Graph map[string] dt.Vertex,Transaction string) ([]string,int) {
 	// BFS of the DAG to get the future set
 	var queue []string
@@ -120,6 +116,12 @@ func GetFutureSet_new(Graph map[string] dt.Vertex,Transaction string) ([]string,
 	return queue,count 
 }
 
+func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string {
+	//Returns the Subgraph transactions hashes as a slice
+	SelectedSubGraph,_ := GetFutureSet_new(Graph,LatestMilestone)
+	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
+	return SelectedSubGraph
+}
 
 func CalculateRating(Graph map[string]dt.Vertex,LatestMilestone string) map[string] int {   
 	//Calculetes the rating of all the transactions in the subgraph
@@ -208,7 +210,7 @@ func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Weights map[
 }
 
 // GetAllTips returns all the tips in the graph
-func GetAllTips (Graph map[string] dt.Vertex ) []string {
+func GetAllTips (Graph map[string] dt.Vertex) []string {
 	var Tips []string
 	for k,v := range Graph {
 		if len(v.Neighbours) < 2 {
@@ -225,94 +227,90 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	Weights := RatingtoWeights(Rating,alpha)
 	Tip := RandomWalk(Ledger.Graph,start,Weights)
 	if Rating[Ledger.Genisis] > 2000 {
-		PruneDag(Ledger,Rating)
+		snapshot.PruneDag(Ledger,Rating)
 	}
 	return Tip 
 }
 
-// PruneDag prunes the Old Transactions to reduce memory overhead
-func PruneDag(dag *dt.DAG, Ratings map[string] int) {
-	// select a milestone which references all the tips
-	NewMilestone := getNewMilestone(Ratings,*dag)
-	fmt.Println(len(GetAllTips(dag.Graph)))
-	DeleteOldtransactions(dag,NewMilestone)
-	fmt.Println(len(GetAllTips(dag.Graph)))
-	dag.Genisis = NewMilestone
-	var tip [32]byte
-	genesisNode := dag.Graph[dag.Genisis]
-	genesisNode.Tx.LeftTip = tip
-	genesisNode.Tx.RightTip = tip
-	dag.Graph[dag.Genisis] = genesisNode
-	fmt.Println(Ratings[dag.Genisis],len(dag.Graph))
-	return
-}
+// // PruneDag prunes the Old Transactions to reduce memory overhead
+// func PruneDag(dag *dt.DAG, Ratings map[string] int) {
+// 	// select a milestone which references all the tips
+// 	NewMilestone := getNewMilestone(Ratings,*dag)
+// 	fmt.Println(len(GetAllTips(dag.Graph)))
+// 	DeleteOldtransactions(dag,NewMilestone)
+// 	fmt.Println(len(GetAllTips(dag.Graph)))
+// 	dag.Genisis = NewMilestone
+// 	var tip [32]byte
+// 	genesisNode := dag.Graph[dag.Genisis]
+// 	genesisNode.Tx.LeftTip = tip
+// 	genesisNode.Tx.RightTip = tip
+// 	dag.Graph[dag.Genisis] = genesisNode
+// 	fmt.Println(Ratings[dag.Genisis],len(dag.Graph))
+// 	return
+// }
 
 
-// DeleteOldtransactions deletes the transactions referenced by NewMilestone
-func DeleteOldtransactions(dag *dt.DAG,NewMilestone string) {
-	tx := dag.Graph[NewMilestone].Tx
-	var tip [32]byte
-	if tx.LeftTip == tip && tx.RightTip == tip {
-		return 
-	}
-	l := EncodeToHex(tx.LeftTip[:])
-	r := EncodeToHex(tx.RightTip[:])
-	if l == r {
-		if _,ok := dag.Graph[l]; ok {
-		DeleteOldtransactions(dag,l)
-		delete(dag.Graph,l)
-		}
-	} else {
-		if _,ok := dag.Graph[l]; ok{
-			DeleteOldtransactions(dag,l)
-			delete(dag.Graph,l)
-		}
-		if _,ok := dag.Graph[r]; ok {
-			DeleteOldtransactions(dag,r)
-			delete(dag.Graph,r)
-		}
-	}
-	return 
-}
+// // DeleteOldtransactions deletes the transactions referenced by NewMilestone
+// func DeleteOldtransactions(dag *dt.DAG,NewMilestone string) {
+// 	tx := dag.Graph[NewMilestone].Tx
+// 	var tip [32]byte
+// 	if tx.LeftTip == tip && tx.RightTip == tip {
+// 		return 
+// 	}
+// 	l := EncodeToHex(tx.LeftTip[:])
+// 	r := EncodeToHex(tx.RightTip[:])
+// 	if l == r {
+// 		if _,ok := dag.Graph[l]; ok {
+// 		DeleteOldtransactions(dag,l)
+// 		delete(dag.Graph,l)
+// 		}
+// 	} else {
+// 		if _,ok := dag.Graph[l]; ok{
+// 			DeleteOldtransactions(dag,l)
+// 			delete(dag.Graph,l)
+// 		}
+// 		if _,ok := dag.Graph[r]; ok {
+// 			DeleteOldtransactions(dag,r)
+// 			delete(dag.Graph,r)
+// 		}
+// 	}
+// 	return 
+// }
 
 // GetSubGraph identifies the subGraph formed by Milestone
 func GetSubGraph(Graph map[string]dt.Vertex, Milestone string) map[string] dt.Vertex {
 	SubDag := make(map[string] dt.Vertex)
-
 	s := SelectSubgraph(Graph,Milestone)
-
 	for _,v := range s {
 		SubDag[v] = Graph[v]
 	}
-
-	return SubDag 
+	return SubDag
 }
 
-func getMaxSet(Ratings map[string] int, neighbours []string) string {
-	step := neighbours[0]
-	max := Ratings[neighbours[0]]
-	for _,v := range neighbours {
-		if Ratings[v] > max {
-			max = Ratings[v]
-			step = v
-		}
-	}
-	return step
-}
+// func getMaxSet(Ratings map[string] int, neighbours []string) string {
+// 	step := neighbours[0]
+// 	max := Ratings[neighbours[0]]
+// 	for _,v := range neighbours {
+// 		if Ratings[v] > max {
+// 			max = Ratings[v]
+// 			step = v
+// 		}
+// 	}
+// 	return step
+// }
 
 
 
-func getNewMilestone(Ratings map[string] int, dag dt.DAG) string {
-	prev := dag.Genisis 
-	path := dag.Genisis
-
-	for {
-		neighbours := dag.Graph[path].Neighbours
-		path = getMaxSet(Ratings,neighbours)
-		if Ratings[path] < 1000 {
-			break
-		}
-		prev = path
-	}
-	return prev
-}
+// func getNewMilestone(Ratings map[string] int, dag dt.DAG) string {
+// 	prev := dag.Genisis 
+// 	path := dag.Genisis
+// 	for {
+// 		neighbours := dag.Graph[path].Neighbours
+// 		path = getMaxSet(Ratings,neighbours)
+// 		if Ratings[path] < 1000 {
+// 			break
+// 		}
+// 		prev = path
+// 	}
+// 	return prev
+// }

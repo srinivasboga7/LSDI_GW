@@ -5,22 +5,22 @@ import(
 	// "time"
 	"net"
 	"encoding/binary"
-	dt "GO-DAG/DataTypes"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
 	//log "GO-DAG/logdump"
 	"GO-DAG/storage"
+	"GO-DAG/Pow"
 	"encoding/json"
 	"strings"
 	"fmt"
 )
 
 type Server struct {
-	Peers *dt.Peers
-	Dag *dt.DAG
+	Peers *storage.Peers
+	Dag *storage.DAG
 }
 
-func GetKeys(Graph map[string]dt.Vertex) []string {
+func GetKeys(Graph map[string]storage.Vertex) []string {
 	var keys []string
 	for k:= range Graph {
 		keys = append(keys,k)
@@ -158,7 +158,7 @@ func (srv *Server)HandleRequests (connection net.Conn,data []byte, IP string) {
 }
 
 
-func ValidTransaction(t dt.Transaction, signature []byte) bool {
+func ValidTransaction(t storage.Transaction, signature []byte) bool {
 	// check the signature
 	s := serialize.SerializeData(t)
 	SerialKey := t.From
@@ -169,7 +169,7 @@ func ValidTransaction(t dt.Transaction, signature []byte) bool {
 		//log.Println("INVALID SIGNATURE")
 		//fmt.Println()
 	}
-	return sigVerify && Crypto.VerifyPoW(t,4)
+	return sigVerify && Pow.VerifyPoW(t,4)
 	//return Crypto.VerifyPoW(t,2)
 }
 
