@@ -6,6 +6,12 @@ import "bytes"
 
 import "encoding/binary"
 
+import "time"
+
+const (
+	rwDeadline = 2 * time.Second
+)
+
 // Msg is the structure of all the msgs in the p2p network
 type Msg struct {
 	ID         uint32
@@ -13,8 +19,17 @@ type Msg struct {
 	Payload    []byte
 }
 
+func (msg *Msg) encode() []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, msg.ID)
+	binary.Write(buf, binary.LittleEndian, msg.LenPayload)
+	szx := append(buf.Bytes(), msg.Payload...)
+	return szx
+}
+
 // ReadMsg reads the msg from the socket
 func ReadMsg(conn net.Conn) (Msg, error) {
+	conn.SetReadDeadline(time.Now().Add(rwDeadline))
 	bufHeader := make([]byte, 8)
 	var msg Msg
 	_, err := conn.Read(bufHeader)
@@ -33,13 +48,9 @@ func ReadMsg(conn net.Conn) (Msg, error) {
 }
 
 // SendMsg sends the msg to the socket
-func SendMsg(conn net.Conn, msg Msg, errc chan error) {
+func SendMsg(conn net.Conn, msg Msg) error {
 	// serialize the msg to be sent over the socket
-	var b []byte
-	// add the serialization
-	_, err := conn.Write(b)
-	if err != nil {
-		errc <- err
-	}
-	return
+	conn.SetWriteDeadline(time.Now().Add(rwDeadline)) // timeout
+	_, err := conn.Write(msg.encode())
+	return err
 }
