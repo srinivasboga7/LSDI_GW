@@ -3,11 +3,11 @@ package serialize
 import (
 	"reflect"
 	"bytes"
-	"math/big"
-	"encoding/asn1"
+	// "math/big"
+	"encoding/hex"
 	"encoding/binary"
 	//"encoding/json"
-	dt "GO-DAG/datatypes"
+	dt "GO-DAG/DataTypes"
 	"fmt"
 )
 
@@ -61,20 +61,6 @@ func DeserializeTransaction(b []byte) (dt.Transaction,[]byte) {
 		fmt.Println(err)
 	}
 	return tx,signature
-}
-
-//canonicalizeInt Converts bigint to byte slice
-func canonicalizeInt(val *big.Int) []byte {
-	b := val.Bytes()
-	if len(b) == 0 {
-		b = []byte{0x00}
-	}
-	if b[0]&0x80 != 0 {
-		paddedBytes := make([]byte, len(b)+1)
-		copy(paddedBytes[1:], b)
-		b = paddedBytes
-	}
-	return b
 }
 
 // // Deserializing signature from DER encoded format

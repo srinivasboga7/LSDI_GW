@@ -1,9 +1,10 @@
 package snapshot
 
 import(
-	dt "GO-DAG/datatypes"
-	"math/rand"
+	dt "GO-DAG/DataTypes"
+	// "math/rand"
 	"encoding/hex"
+	"fmt"
 )
  
 

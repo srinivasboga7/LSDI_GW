@@ -8,8 +8,10 @@ import (
 	"crypto/elliptic"
 	"encoding/hex"
 	"encoding/pem"
+	"encoding/asn1"
 	"os"
-	"strings"
+	"math/big"
+	// "strings"
 	"io/ioutil"
 	"fmt"
 )
@@ -156,4 +158,18 @@ func Verify(signature []byte , PublicKey *ecdsa.PublicKey, hash []byte) bool {
 	r,s := PointsFromDER(signature)
 	v := ecdsa.Verify(PublicKey,hash,r,s)
 	return v
+}
+
+//canonicalizeInt Converts bigint to byte slice
+func canonicalizeInt(val *big.Int) []byte {
+	b := val.Bytes()
+	if len(b) == 0 {
+		b = []byte{0x00}
+	}
+	if b[0]&0x80 != 0 {
+		paddedBytes := make([]byte, len(b)+1)
+		copy(paddedBytes[1:], b)
+		b = paddedBytes
+	}
+	return b
 }

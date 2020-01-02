@@ -1,8 +1,8 @@
 package consensus
 
 import (
-	"fmt"
-	dt "GO-DAG/datatypes"
+	// "fmt"
+	dt "GO-DAG/DataTypes"
 	"GO-DAG/snapshot"
 	"math/rand"
 	"math"

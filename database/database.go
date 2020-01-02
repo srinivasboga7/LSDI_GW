@@ -5,29 +5,48 @@ import(
 )
 
 //AddToDb Adds to the database key value pair
-func AddToDb(key []byte, value []byte]) {
-	opts := badger.DefaultOptions
-	opts.Dir = ""
-	opts.ValueDir = ""
-	kv, err := badger.NewKV(&opts)
+func AddToDb(key []byte, value []byte) {
+	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
 	if err != nil {
-		panic(err)
+	  panic(err)
 	}
-	defer kv.Close()
-	err = kv.Set(key,value)
-	if err != nil {
-		panic(err)
+	defer db.Close()
+	err1 := db.Update(func(txn *badger.Txn) error {
+		// Your code here…
+		err = txn.Set(key,value)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+	if err1 != nil {
+		panic(err1)
 	}
+	// opts := badger.DefaultOptions
+	// opts.Dir = ""
+	// opts.ValueDir = ""
+	// kv, err := badger.NewKV(&opts)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer kv.Close()
+	// err = kv.Set(key,value)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
 
 
-func GetAllKeys() []string {
-	Keys := make([]string,0)
-	err := db.View(func(txn *badger.Txn) error {
+func GetAllKeys() [][]byte {
+	Keys := make([][]byte,0)
+	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
+	if err != nil {
+	  panic(err)
+	}
+	defer db.Close()
+	err1 := db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
-		opts.Dir = ""
-		// opts.ValueDir = ""
-		opts.PrefetchSize = false
+		opts.PrefetchValues = false
 		it := txn.NewIterator(opts)
 		defer it.Close()
 		for it.Rewind(); it.Valid(); it.Next() {
@@ -35,6 +54,9 @@ func GetAllKeys() []string {
 		}
 		return nil
 	})
+	if err1 != nil {
+		panic(err1)
+	}
 	// fmt.Println(len(Keys))
 	return Keys
 
@@ -64,21 +86,44 @@ func GetAllKeys() []string {
 
 // GetTransaction returns transaction based on hash value.
 func GetValue(key []byte) []byte {
-	
-	opts := badger.DefaultOptions
-	opts.Dir = ""
-	opts.ValueDir = ""
-	kv, err := badger.NewKV(&opts)
+	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
 	if err != nil {
-		panic(err)
+	  panic(err)
 	}
-	defer kv.Close()
-	var item badger.KVItem
-	err = kv.Get(key,&item)
-	if err == ErrKeyNotFound {
-		return false
+	defer db.Close()
+	var valCopy []byte
+	err1 := db.View(func(txn *badger.Txn) error {
+		item,err := txn.Get(key)
+		if err != nil {
+			panic(err)
+		}
+		err2 := item.Value(func(val []byte) error {
+			valCopy = append([]byte{}, val...)
+			return nil
+		})
+		if err2 != nil {
+			panic(err2)
+		}
+		return nil
+	})
+	if err1 != nil {
+		panic(err1)
 	}
-	return item.Value()
+	return valCopy
+	// opts := badger.DefaultOptions
+	// opts.Dir = ""
+	// opts.ValueDir = ""
+	// kv, err := badger.NewKV(&opts)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer kv.Close()
+	// var item badger.KVItem
+	// err = kv.Get(key,&item)
+	// if err == ErrKeyNotFound {
+	// 	return false
+	// }
+	// return item.Value()
 	//return serialize.Deserializedata(item.Value())
 
 
@@ -129,23 +174,25 @@ func GetValue(key []byte) []byte {
 
 //CheckKey checks if a key-value pair is present in the database, returns true if present else false
 func CheckKey(key []byte) bool{
-	opts := badger.DefaultOptions
-	opts.Dir = ""
-	opts.ValueDir = ""
-	kv, err := badger.NewKV(&opts)
+	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
 	if err != nil {
-		panic(err)
+	  panic(err)
 	}
-	defer kv.Close()
-	var item badger.KVItem
-	err = kv.Get(key,&item)
-	if err == ErrKeyNotFound {
-		return false
-	} else if err != nil {
-		panic(err)
-	} else {
-		return true
+	defer db.Close()
+	var valCopy bool
+	err1 := db.View(func(txn *badger.Txn) error {
+		_,err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			valCopy = false
+		} else {
+			valCopy = true
+		}
+		return nil
+	})
+	if err1 != nil {
+		panic(err1)
 	}
+	return valCopy
 
 	// db, err := sql.Open("mysql","Sumanth:sumanth@tcp(127.0.0.1:3306)/dag")
 	// if err != nil {
