@@ -2,11 +2,12 @@ package consensus
 
 import (
 	"fmt"
-	"GO-DAG/storage"
+	dt "GO-DAG/datatypes"
+	"GO-DAG/snapshot"
 	"math/rand"
 	"math"
 	"encoding/hex"
-	// "GO-DAG/storage"
+	// "GO-DAG/dt"
 )
 
 func getMax(s []int) int {    
@@ -85,7 +86,7 @@ func GetKeysValuesFromMap_float64(mymap map[string] float64) ([]string, []float6
 	return keys,values
 }
 
-func IsTip(Graph map[string]storage.Vertex, Transaction string) bool {     
+func IsTip(Graph map[string]dt.Vertex, Transaction string) bool {     
 	//Checks if the Given transaction is a tip or not
 	if len(Graph[Transaction].Neighbours) < 2 {  
 		//If the neighbours slice is empty then the tx is tip
@@ -95,7 +96,7 @@ func IsTip(Graph map[string]storage.Vertex, Transaction string) bool {
 	}
 }
 
-func GetFutureSet_new(Graph map[string] storage.Vertex,Transaction string) ([]string,int) {
+func GetFutureSet_new(Graph map[string] dt.Vertex,Transaction string) ([]string,int) {
 	// BFS of the DAG to get the future set
 	var queue []string
 	queue = append(queue,Transaction)
@@ -115,14 +116,14 @@ func GetFutureSet_new(Graph map[string] storage.Vertex,Transaction string) ([]st
 	return queue,count 
 }
 
-func SelectSubgraph(Graph map[string]storage.Vertex, LatestMilestone string) []string {
+func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string {
 	//Returns the Subgraph transactions hashes as a slice
 	SelectedSubGraph,_ := GetFutureSet_new(Graph,LatestMilestone)
 	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
 	return SelectedSubGraph
 }
 
-func CalculateRating(Graph map[string]storage.Vertex,LatestMilestone string) map[string] int {   
+func CalculateRating(Graph map[string]dt.Vertex,LatestMilestone string) map[string] int {   
 	//Calculetes the rating of all the transactions in the subgraph
 	SubGraph := SelectSubgraph(Graph,LatestMilestone)
 	//fmt.Println(SubGraph)
@@ -149,35 +150,35 @@ func RatingtoWeights(Rating map[string] int, alpha float64) map[string] float64 
 	//Returns the weights a map of hashes of transaction to the float64 weight value
 }
 
-// // GetEntryPoint returns a tip from which we perform backtrack
-// func GetEntryPoint(Tips []string) string {
-// 	var EntryPoint string
-// 	var Perm []int
-// 	Perm = rand.Perm(len(Tips))
-// 	EntryPoint = Tips[Perm[0]]
-// 	return EntryPoint
-// }
+// GetEntryPoint returns a tip from which we perform backtrack
+func GetEntryPoint(Tips []string) string {
+	var EntryPoint string
+	var Perm []int
+	Perm = rand.Perm(len(Tips))
+	EntryPoint = Tips[Perm[0]]
+	return EntryPoint
+}
 
-// // BackTrack returns a point whose cumilative weight is greater than threshold
-// func BackTrack(Threshhold int, Graph map[string] storage.Vertex, Genisis string,startingPoint string) string{
-// 	current := startingPoint
-// 	var rating int 
-// 	for {
-// 		_,rating = GetFutureSet_new(Graph,current)
-// 		if(rating > Threshhold || current == Genisis) {
-// 			break
-// 		}
-// 		tx := Graph[current].Tx
-// 		if _,ok := Graph[EncodeToHex(tx.LeftTip[:])] ; !ok {
-// 			break
-// 		}
-// 		current = EncodeToHex(tx.LeftTip[:])
-// 	}
-// 	return current;
-// } 
+// BackTrack returns a point whose cumilative weight is greater than threshold
+func BackTrack(Threshhold int, Graph map[string] dt.Vertex, Genisis string,startingPoint string) string{
+	current := startingPoint
+	var rating int 
+	for {
+		_,rating = GetFutureSet_new(Graph,current)
+		if(rating > Threshhold || current == Genisis) {
+			break
+		}
+		tx := Graph[current].Tx
+		if _,ok := Graph[EncodeToHex(tx.LeftTip[:])] ; !ok {
+			break
+		}
+		current = EncodeToHex(tx.LeftTip[:])
+	}
+	return current;
+} 
 
 // NextStep returns the pointer to the next transaction in random walk
-func NextStep(Graph map[string]storage.Vertex , Transaction string, Weights map[string] float64) string {  
+func NextStep(Graph map[string]dt.Vertex , Transaction string, Weights map[string] float64) string {  
 	//Returns the hash of transaction of the next step to be taken in random walk
 	var values []float64
 	for _,neighbour := range(Graph[Transaction].Neighbours) {
@@ -198,7 +199,7 @@ func NextStep(Graph map[string]storage.Vertex , Transaction string, Weights map[
 
 
 // RandomWalk is an Implementation of IOTA's MCMC algorithm
-func RandomWalk(Graph map[string]storage.Vertex, LatestMilestone string, Weights map[string]float64) string {  
+func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Weights map[string]float64) string {  
 	//Returns the tip when given a milestone transaction
 	CurrentTransaction := LatestMilestone
 	for ;!IsTip(Graph,CurrentTransaction); {
@@ -208,31 +209,31 @@ func RandomWalk(Graph map[string]storage.Vertex, LatestMilestone string, Weights
 	return CurrentTransaction
 }
 
-// // GetAllTips returns all the tips in the graph
-// func GetAllTips (Graph map[string] storage.Vertex) []string {
-// 	var Tips []string
-// 	for k,v := range Graph {
-// 		if len(v.Neighbours) < 2 {
-// 			Tips = append(Tips,k)
-// 		} 
-// 	}
-// 	return Tips
-// }
+// GetAllTips returns all the tips in the graph
+func GetAllTips (Graph map[string] dt.Vertex) []string {
+	var Tips []string
+	for k,v := range Graph {
+		if len(v.Neighbours) < 2 {
+			Tips = append(Tips,k)
+		} 
+	}
+	return Tips
+}
 
 // GetTip returns the tip after a random walk from a point chosen by BackTrack
-func GetTip(Ledger *storage.DAG, alpha float64) string {
+func GetTip(Ledger *dt.DAG, alpha float64) string {
 	start := BackTrack(50,Ledger.Graph,Ledger.Genisis,GetEntryPoint(GetAllTips(Ledger.Graph)))
 	Rating := CalculateRating(Ledger.Graph,start)
 	Weights := RatingtoWeights(Rating,alpha)
 	Tip := RandomWalk(Ledger.Graph,start,Weights)
 	if Rating[Ledger.Genisis] > 2000 {
-		PruneDag(Ledger,Rating)
+		snapshot.PruneDag(Ledger,Rating)
 	}
 	return Tip 
 }
 
 // // PruneDag prunes the Old Transactions to reduce memory overhead
-// func PruneDag(dag *storage.DAG, Ratings map[string] int) {
+// func PruneDag(dag *dt.DAG, Ratings map[string] int) {
 // 	// select a milestone which references all the tips
 // 	NewMilestone := getNewMilestone(Ratings,*dag)
 // 	fmt.Println(len(GetAllTips(dag.Graph)))
@@ -250,7 +251,7 @@ func GetTip(Ledger *storage.DAG, alpha float64) string {
 
 
 // // DeleteOldtransactions deletes the transactions referenced by NewMilestone
-// func DeleteOldtransactions(dag *storage.DAG,NewMilestone string) {
+// func DeleteOldtransactions(dag *dt.DAG,NewMilestone string) {
 // 	tx := dag.Graph[NewMilestone].Tx
 // 	var tip [32]byte
 // 	if tx.LeftTip == tip && tx.RightTip == tip {
@@ -277,8 +278,8 @@ func GetTip(Ledger *storage.DAG, alpha float64) string {
 // }
 
 // GetSubGraph identifies the subGraph formed by Milestone
-func GetSubGraph(Graph map[string]storage.Vertex, Milestone string) map[string] storage.Vertex {
-	SubDag := make(map[string] storage.Vertex)
+func GetSubGraph(Graph map[string]dt.Vertex, Milestone string) map[string] dt.Vertex {
+	SubDag := make(map[string] dt.Vertex)
 	s := SelectSubgraph(Graph,Milestone)
 	for _,v := range s {
 		SubDag[v] = Graph[v]
@@ -300,7 +301,7 @@ func GetSubGraph(Graph map[string]storage.Vertex, Milestone string) map[string] 
 
 
 
-// func getNewMilestone(Ratings map[string] int, dag storage.DAG) string {
+// func getNewMilestone(Ratings map[string] int, dag dt.DAG) string {
 // 	prev := dag.Genisis 
 // 	path := dag.Genisis
 // 	for {

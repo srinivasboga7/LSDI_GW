@@ -7,12 +7,23 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	//"encoding/json"
-	"GO-DAG/storage"
+	dt "GO-DAG/datatypes"
 	"fmt"
 )
 
+//EncodeToHex converts byte slice to the string
+func EncodeToHex(data []byte) string {
+	return hex.EncodeToString(data)
+}
+
+//DecodeToBytes converts string to byte slice
+func DecodeToBytes(data string) []byte {
+	b,_ := hex.DecodeString(data)
+	return b
+}
+
 //SerializeData serializes transaction to byte slice
-func SerializeData(t storage.Transaction) []byte {
+func SerializeData(t dt.Transaction) []byte {
 	// iterating over a struct is painful in golang
 	var b []byte
 	v := reflect.ValueOf(&t).Elem()
@@ -38,13 +49,13 @@ func EncodeToBytes(x interface{}) []byte {
 }
 
 //DeserializeTransaction Converts back byte slice to transaction
-func DeserializeTransaction(b []byte) (storage.Transaction,[]byte) {
+func DeserializeTransaction(b []byte) (dt.Transaction,[]byte) {
 	// only a temporary method will change to include signature and other checks
 	l := binary.LittleEndian.Uint32(b[:4])
 	payload := b[4:l+4]
 	signature := b[l+4:]
 	r := bytes.NewReader(payload)
-	var tx storage.Transaction
+	var tx dt.Transaction
 	err := binary.Read(r,binary.LittleEndian,&tx)
 	if err != nil { 
 		fmt.Println(err)

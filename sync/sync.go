@@ -1,6 +1,7 @@
 package sync
 
 import(
+	dt "GO-DAG/datatypes"
 	"GO-DAG/storage"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
@@ -9,7 +10,7 @@ import(
 )
 
 //copyDAG Sync dag copy - Copies latest transactions from peer and constructs dag
-func copyDAG(dag *storage.DAG, p *storage.Peers, conn net.Conn) {
+func copyDAG(dag *dt.DAG, p *dt.Peers, conn net.Conn) {
 	var magicNumber uint32
 	magicNumber = 2
 	b := serialize.EncodeToBytes(magicNumber)
@@ -41,7 +42,7 @@ func copyDAG(dag *storage.DAG, p *storage.Peers, conn net.Conn) {
 			length,_ := Peers.Fds[r].Read(buf)
 			Peers.Mux.Unlock()
 			tx,sign := serialize.DeserializeTransaction(buf[:length])
-			var vertex storage.Vertex
+			var vertex dt.Vertex
 			vertex.Tx = tx
 			vertex.Signature = sign
 			var tip [32]byte 
@@ -59,7 +60,7 @@ func copyDAG(dag *storage.DAG, p *storage.Peers, conn net.Conn) {
 }
 
 //constructDAG Constructs DAG structure from transctions using tips, used in the copyDAG function
-func constructDAG(dag *storage.DAG) {
+func constructDAG(dag *dt.DAG) {
 	for h,vertex := range dag.Graph {
 		tx := vertex.Tx
 		left := Crypto.EncodeToHex(tx.LeftTip[:])

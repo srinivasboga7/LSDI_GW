@@ -1,58 +1,32 @@
 package storage
 
 import(
-	dt "GO-DAG/DataTypes"
-	// "fmt"
+	dt "GO-DAG/datatypes"
 	"GO-DAG/serialize"
-	"GO-DAG/Crypto"
 	db "GO-DAG/database"
 	"sync"
 	"net"
 )
 
-// Transaction DS Transaction structure
-type Transaction struct {
-	Timestamp int64 // 8 bytes
-	Hash [32]byte //could be a string but have to figure out serialization
-	From [65]byte //length of public key 33(compressed) or 65(uncompressed)
-	LeftTip [32]byte
-	RightTip [32]byte
-	Nonce uint32 // 4 bytes
-}
-
-// Peers maintains the list of all peers connected to the node
-type Peers struct {
-	Mux sync.Mutex
-	Fds map[string] net.Conn
-}
-
-// Vertex is a wrapper struct of Transaction 
-type Vertex struct {
-	Tx Transaction
-	Signature []byte
-	Neighbours [] string 
-}
-
-// DAG defines the data structure to store the blockchain
-type DAG struct {
-	Mux sync.Mutex
-	Genisis string
-	Graph map[string] Vertex
-}
-
 var OrphanedTransactions = make(map[string] []Vertex)
 var Mux sync.Mutex 
 
+//Hash returns the SHA256 hash value
+func Hash(b []byte) [32]byte {
+	h := sha256.Sum256(b)
+	return h
+}
+
 //AddTransaction checks if transaction if already present in the dag, if not adds to dag and database and returns true else returns false
-func AddTransaction(dag *DAG,tx Transaction, signature []byte, serializedTx []byte) int {
+func AddTransaction(dag *DAG,tx dt.Transaction, signature []byte, serializedTx []byte) int {
 
 	// change this function for the storage node
-	var node Vertex
+	var node dt.Vertex
 	var duplicationCheck int
 	duplicationCheck = 0
 	s := serialize.SerializeData(tx)
-	Txid := Crypto.Hash(s)
-	h := Crypto.EncodeToHex(Txid[:])
+	Txid := Hash(s)
+	h := serialize.EncodeToHex(Txid[:])
 	dag.Mux.Lock()
 	if _,ok := dag.Graph[h] ; !ok{  //Duplication check
 		node.Tx = tx
@@ -64,8 +38,8 @@ func AddTransaction(dag *DAG,tx Transaction, signature []byte, serializedTx []by
 			duplicationCheck = 1
 			db.AddToDb(Txid,serializedTx)
 		} else {
-			left := Crypto.EncodeToHex(tx.LeftTip[:])
-			right := Crypto.EncodeToHex(tx.RightTip[:]) 
+			left := serialize.EncodeToHex(tx.LeftTip[:])
+			right := serialize.EncodeToHex(tx.RightTip[:]) 
 			l,okL := dag.Graph[left]
 			r,okR := dag.Graph[right]
 			if !okL || !okR {
@@ -82,12 +56,12 @@ func AddTransaction(dag *DAG,tx Transaction, signature []byte, serializedTx []by
 				dag.Graph[h] = node
 				if left == right {
 					l.Neighbours = append(l.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
 				} else {
 					l.Neighbours = append(l.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
 					r.Neighbours = append(r.Neighbours,h)
-					dag.Graph[Crypto.EncodeToHex(tx.RightTip[:])] = r
+					dag.Graph[serialize.EncodeToHex(tx.RightTip[:])] = r
 				}
 				duplicationCheck = 1
 				db.AddToDb(h,serializedTx)
@@ -99,6 +73,22 @@ func AddTransaction(dag *DAG,tx Transaction, signature []byte, serializedTx []by
 		checkOrphanedTransactions(h,dag)
 	}
 	return duplicationCheck
+}
+
+//GetTransactiondb Wrapper function for GetTransaction in db module
+func GetTransactiondb(Txid []byte) dt.Transaction,[]byte {
+	stream := db.GetValue(Txid)
+	return serialize.DeserializeTransaction(stream)
+}
+
+//checkifPresentDb Wrapper function for CheckKey in db module
+func checkifPresentDb(Txid []byte) bool {
+	return db.CheckKey(Txid)
+}
+
+//GetAllHashes Wrapper function for GetAllKeys in db module
+func GetAllHashes() {
+	return db.GetAllKeys()
 }
 
 //checkOrphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function

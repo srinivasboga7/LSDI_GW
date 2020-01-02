@@ -2,13 +2,13 @@ package Pow
 
 import (
 	"strings"
-	"GO-DAG/storage"
+	dt "GO-DAG/datatypes"
 	"GO-DAG/Crypto"
 	"GO-DAG/serialize"
 )
 
 //Pow calculates the Nonce field in tx to match the difficulty
-func PoW(tx *storage.Transaction,,difficulty int) {
+func PoW(tx *dt.Transaction,,difficulty int) {
 	for {
 		s := serialize.SerializeData(*tx)
 		hash := Crypto.Hash(s)
@@ -21,7 +21,7 @@ func PoW(tx *storage.Transaction,,difficulty int) {
 }
 
 //VerifyPoW verifies if the nonce field of tx matches the difficulty
-func VerifyPoW(tx storage.Transaction,difficulty int) bool {
+func VerifyPoW(tx dt.Transaction,difficulty int) bool {
 	s := serialize.SerializeData(tx)
 	hash := Crypto.Hash(s)
 	h := Crypto.EncodeToHex(hash[:])
