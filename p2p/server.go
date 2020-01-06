@@ -25,11 +25,13 @@ func validateHandshakeMsg(reply []byte) (*PeerID, error) {
 
 // Server ...
 type Server struct {
-	peers    []Peer
-	maxPeers uint32
-	hostID   PeerID
-	ec       chan error
-	mux      sync.Mutex
+	peers        []Peer
+	maxPeers     uint32
+	hostID       PeerID
+	ec           chan error
+	mux          sync.Mutex
+	NewPeer      chan Peer
+	BroadcastMsg chan Msg
 	// ...
 }
 
@@ -44,6 +46,7 @@ func (srv *Server) setupConn(conn net.Conn) {
 		return
 	}
 	srv.AddPeer(newPeer(conn, *pid))
+	srv.NewPeer <- newPeer(conn, *pid)
 }
 
 func (srv *Server) performHandshake(c net.Conn) (*PeerID, error) {
@@ -149,17 +152,14 @@ func initiateConnection(pID PeerID) (net.Conn, error) {
 	return conn, nil
 }
 
-// New initializes a new node
-func New(hID PeerID) *Server {
+// Run starts the server
+func (srv *Server) Run() {
 
 	// start the server
-	var srv Server
-	srv.hostID = hID
-	srv.ec = make(chan error)
 	go srv.listenForConns()
 
 	// start the discovery and request peers
-	pIds := FindPeers(hID)
+	pIds := FindPeers(srv.hostID)
 
 	// iteratively connect with peers
 	for _, pID := range pIds {
@@ -172,5 +172,22 @@ func New(hID PeerID) *Server {
 		}
 	}
 
-	return &srv
+	for {
+		select {
+		// listen
+		case msg := <-srv.BroadcastMsg:
+			Send(msg, srv.peers)
+		}
+	}
+}
+
+// Send ...
+func Send(msg Msg, peers []Peer) {
+	for _, p := range peers {
+		err := SendMsg(p.rw, msg)
+		if err != nil {
+			// signal an error
+			p.ec <- err
+		}
+	}
 }

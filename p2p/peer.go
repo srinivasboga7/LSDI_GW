@@ -66,6 +66,17 @@ func (p *Peer) readLoop(readErr chan error) {
 	}
 }
 
+// GetMsg returns the msg from the peer
+func (p *Peer) GetMsg() (Msg, error) {
+	var msg Msg
+	select {
+	case msg = <-p.in:
+	case <-p.closed:
+		return msg, errors.New("peer suspended")
+	}
+	return msg, nil
+}
+
 // pingLoop is used to check the status of connection
 func (p *Peer) pingLoop(e chan error) {
 	for {
@@ -87,7 +98,7 @@ func (p *Peer) handleMsg(msg Msg) error {
 	case msg.ID == pingMsg:
 		var pong Msg
 		pong.ID = pongMsg
-		go SendMsg(p.rw, pong)
+		SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
 
@@ -96,9 +107,8 @@ func (p *Peer) handleMsg(msg Msg) error {
 	default:
 		select {
 		case p.in <- msg:
-			// pass on the msg to dag logic
 		case <-p.closed:
-			return nil
+			return errors.New("peer closed")
 		}
 	}
 	return nil
