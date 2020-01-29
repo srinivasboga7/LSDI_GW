@@ -1,10 +1,12 @@
 package logdump
+
 //package main
 
-import(
+import (
 	"fmt"
-	"github.com/fatih/color"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 // Println is a function used to log with timestamp
@@ -13,7 +15,7 @@ func Println(msg string) {
 	fmt.Printf("INFO ")
 	color.Unset()
 	color.Set(color.FgMagenta)
-	fmt.Printf(time.Now().Format("15:04:05 ")) 
+	fmt.Printf(time.Now().Format("15:04:05 "))
 	color.Unset()
 	fmt.Print(msg)
 }
@@ -34,7 +36,6 @@ func Printtx(msg string) {
 	fmt.Printf(msg)
 	color.Unset()
 }
-
 
 // func main() {
 // 	DefaultPrintBlue("Hello,World !")
