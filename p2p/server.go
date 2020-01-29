@@ -2,12 +2,12 @@ package p2p
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"log"
 	"net"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type handshakeMsg struct {
@@ -18,16 +18,19 @@ func (msg *handshakeMsg) encode() []byte {
 	return append(msg.ID.IP, msg.ID.PublicKey...)
 }
 
-func validateHandshakeMsg(reply []byte) (*PeerID, error) {
+func validateHandshakeMsg(reply []byte) (PeerID, error) {
 	// figure out some validation criteria
-	return nil, nil
+	var p PeerID
+	p.IP = reply[:4]
+	p.PublicKey = reply[4:]
+	return p, nil
 }
 
 // Server ...
 type Server struct {
 	peers        []Peer
 	maxPeers     uint32
-	hostID       PeerID
+	HostID       PeerID
 	ec           chan error
 	mux          sync.Mutex
 	NewPeer      chan Peer
@@ -35,24 +38,60 @@ type Server struct {
 	// ...
 }
 
-// setupConn performs a handshake with the other peer
-// Adds the new peer to the list of known peers
-func (srv *Server) setupConn(conn net.Conn) {
-	defer conn.Close()
-	pid, err := srv.performHandshake(conn)
-	if err != nil {
-		// maybe spitout an error or the reason for badhandshake
-		log.Println(err, "bad handshake")
-		return
+// GetRandomPeer ...
+func (srv *Server) GetRandomPeer() Peer {
+	var p Peer
+	for {
+		srv.mux.Lock()
+		if len(srv.peers) > 0 {
+			p = srv.peers[0]
+			srv.mux.Unlock()
+			break
+		}
+		srv.mux.Unlock()
 	}
-	srv.AddPeer(newPeer(conn, *pid))
-	srv.NewPeer <- newPeer(conn, *pid)
+	return p
 }
 
-func (srv *Server) performHandshake(c net.Conn) (*PeerID, error) {
+// setupConn validates a handshake with the other peer
+// Adds the new peer to the list of known peers
+func (srv *Server) setupConn(conn net.Conn) error {
+
+	msg, err := ReadMsg(conn)
+	if err != nil {
+		return err
+	}
+
+	// validate hanshake message
+	pid, err := validateHandshakeMsg(msg.Payload)
+
+	// reply with a proper hanshake
+	if msg.ID == 0x00 {
+		var hMsg handshakeMsg
+		hMsg.ID = srv.HostID
+		buf := hMsg.encode()
+		var msg Msg
+		msg.ID = hsMsg
+		msg.LenPayload = uint32(len(buf))
+		msg.Payload = buf
+		if err := SendMsg(conn, msg); err != nil {
+			return err
+		}
+	} else {
+		return errors.New("bad handshake")
+	}
+
+	p := newPeer(conn, pid)
+	srv.AddPeer(p)
+	srv.NewPeer <- p
+
+	return nil
+}
+
+func (srv *Server) performHandshake(c net.Conn, p PeerID) error {
 	// define handshake msg
 
-	hmsg := handshakeMsg{srv.hostID}
+	hmsg := handshakeMsg{srv.HostID}
 	buf := hmsg.encode()
 	var msg Msg
 	msg.ID = hsMsg
@@ -61,15 +100,18 @@ func (srv *Server) performHandshake(c net.Conn) (*PeerID, error) {
 
 	// sending the handshake msg
 	if err := SendMsg(c, msg); err != nil {
-		return nil, err
+		return err
 	}
 	reply, err := ReadMsg(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// validate the reply figure out
-	p, err := validateHandshakeMsg(reply.Payload)
-	return p, nil
+	pid, err := validateHandshakeMsg(reply.Payload)
+	if !pid.Equals(p) {
+		return errors.New("Invalid Handshake Msg")
+	}
+	return nil
 }
 
 // AddPeer ...
@@ -110,65 +152,49 @@ func (srv *Server) listenForConns() {
 }
 
 func parseAddr(b []byte) string {
-	var IP struct {
-		b1 uint8
-		b2 uint8
-		b3 uint8
-		b4 uint8
-	}
-	buf := bytes.NewReader(b)
-	binary.Read(buf, binary.LittleEndian, &IP)
-	addr := strconv.Itoa(int(IP.b1)) + "." + strconv.Itoa(int(IP.b2)) + "."
-	addr += strconv.Itoa(int(IP.b3)) + "." + strconv.Itoa(int(IP.b4)) + ":8080"
+	addr := strconv.Itoa(int(b[0])) + "." + strconv.Itoa(int(b[1])) + "."
+	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3])) + ":8080"
 	return addr
 }
 
-func initiateConnection(pID PeerID) (net.Conn, error) {
+func (srv *Server) initiateConnection(pID PeerID) (net.Conn, error) {
 	conn, err := net.Dial("tcp", parseAddr(pID.IP))
 	if err != nil {
 		return conn, err
 	}
 
-	// wait for the handshake message
-	// respond to the handshake message
-	msg, err := ReadMsg(conn)
+	err = srv.performHandshake(conn, pID)
 	if err != nil {
-		return conn, err
+		conn.Close()
+		return nil, err
 	}
-
-	// validate hanshake message
-
-	// reply with a proper hanshake
-	if msg.ID == 0x00 {
-		var hMsg handshakeMsg
-		hMsg.ID = pID
-		if _, err := conn.Write(hMsg.encode()); err != nil {
-			return conn, err
-		}
-	} else {
-		return conn, errors.New("bad handshake")
-	}
-
 	return conn, nil
 }
 
 // Run starts the server
 func (srv *Server) Run() {
 
+	srv.ec = make(chan error)
+	srv.NewPeer = make(chan Peer)
 	// start the server
 	go srv.listenForConns()
+	time.Sleep(time.Second)
 
 	// start the discovery and request peers
-	pIds := FindPeers(srv.hostID)
+	var pIds []PeerID
+	pIds = FindPeers(srv.HostID)
+	// pIds = append(pIds, srv.HostID)
 
 	// iteratively connect with peers
 	for _, pID := range pIds {
 		// handshake phase
-		conn, err := initiateConnection(pID)
+		conn, err := srv.initiateConnection(pID)
 		if err != nil {
-			conn.Close()
+			log.Println(err)
 		} else {
-			srv.AddPeer(newPeer(conn, pID))
+			p := newPeer(conn, pID)
+			srv.AddPeer(p)
+			srv.NewPeer <- p
 		}
 	}
 
@@ -177,6 +203,8 @@ func (srv *Server) Run() {
 		// listen
 		case msg := <-srv.BroadcastMsg:
 			Send(msg, srv.peers)
+		case <-srv.ec:
+			log.Fatal("error")
 		}
 	}
 }
@@ -184,7 +212,10 @@ func (srv *Server) Run() {
 // Send ...
 func Send(msg Msg, peers []Peer) {
 	for _, p := range peers {
-		err := SendMsg(p.rw, msg)
+		var err error
+		if !p.ID.Equals(msg.Sender) {
+			err = SendMsg(p.rw, msg)
+		}
 		if err != nil {
 			// signal an error
 			p.ec <- err
