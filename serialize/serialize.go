@@ -1,11 +1,13 @@
 package serialize
 
 import (
-	"reflect"
 	"bytes"
+	"reflect"
+
 	// "math/big"
-	"encoding/hex"
 	"encoding/binary"
+	"encoding/hex"
+
 	//"encoding/json"
 	dt "GO-DAG/DataTypes"
 	"fmt"
@@ -18,18 +20,18 @@ func EncodeToHex(data []byte) string {
 
 //DecodeToBytes converts string to byte slice
 func DecodeToBytes(data string) []byte {
-	b,_ := hex.DecodeString(data)
+	b, _ := hex.DecodeString(data)
 	return b
 }
 
 //SerializeData serializes transaction to byte slice
-func SerializeData(t dt.Transaction) []byte {
+func SerializeData(t interface{}) []byte {
 	// iterating over a struct is painful in golang
 	var b []byte
 	v := reflect.ValueOf(&t).Elem()
-	for i := 0; i < v.NumField() ;i++ {
+	for i := 0; i < v.NumField(); i++ {
 		value := v.Field(i)
-		b = append(b,EncodeToBytes(value.Interface())...)
+		b = append(b, EncodeToBytes(value.Interface())...)
 	}
 	return b
 }
@@ -38,29 +40,63 @@ func SerializeData(t dt.Transaction) []byte {
 func EncodeToBytes(x interface{}) []byte {
 	// encode based on type as binary package doesn't support strings
 	switch x.(type) {
-	case string :
+	case string:
 		str := x.(string)
 		return []byte(str)
-	default :
+	default:
 		buf := new(bytes.Buffer)
-		binary.Write(buf,binary.LittleEndian, x)
+		binary.Write(buf, binary.LittleEndian, x)
 		return buf.Bytes()
 	}
 }
 
-//DeserializeTransaction Converts back byte slice to transaction
-func DeserializeTransaction(b []byte) (dt.Transaction,[]byte) {
+//DeserializeShardTransaction Converts byte slice to Shard transaction
+func DeserializeShardTransaction(b []byte) (dt.ShardTransaction, []byte) {
 	// only a temporary method will change to include signature and other checks
 	l := binary.LittleEndian.Uint32(b[:4])
-	payload := b[4:l+4]
+	payload := b[4 : l+4]
 	signature := b[l+4:]
 	r := bytes.NewReader(payload)
-	var tx dt.Transaction
-	err := binary.Read(r,binary.LittleEndian,&tx)
-	if err != nil { 
+	var tx dt.ShardTransaction
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
 		fmt.Println(err)
 	}
-	return tx,signature
+	return tx, signature
+}
+
+//DeserializeTransaction Converts back byte slice to transaction
+func DeserializeTransaction(b []byte, Type string) (interface{}, []byte) {
+	// only a temporary method will change to include signature and other checks
+	l := binary.LittleEndian.Uint32(b[:4])
+	payload := b[4 : l+4]
+	signature := b[l+4:]
+	r := bytes.NewReader(payload)
+	switch Type {
+	case "DataTx":
+		var tx dt.Transaction
+		err := binary.Read(r, binary.LittleEndian, &tx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return tx, signature
+	case "ShardSignal":
+		var tx dt.ShardSignal
+		err := binary.Read(r, binary.LittleEndian, &tx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return tx, signature
+	case "ShardTx":
+		var tx dt.ShardTransaction
+		err := binary.Read(r, binary.LittleEndian, &tx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return tx, signature
+	default:
+		return nil, nil
+	}
 }
 
 // // Deserializing signature from DER encoded format
@@ -110,4 +146,4 @@ func DeserializeTransaction(b []byte) (dt.Transaction,[]byte) {
 // 	b[offset+1] = byte(len(sb))
 // 	copy(b[offset+2:], sb)
 // 	return b
-// } 
+// }
