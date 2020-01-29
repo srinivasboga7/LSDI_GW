@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"errors"
 	"log"
 	"net"
@@ -17,7 +18,7 @@ const (
 
 const (
 	baseprotoLength = uint32(16)
-	pingMsgInterval = 15 * time.Second
+	pingMsgInterval = 1 * time.Second
 )
 
 // PeerID is a structure to identify each unique peer in the P2P network
@@ -25,6 +26,14 @@ const (
 type PeerID struct {
 	IP        []byte
 	PublicKey []byte
+}
+
+// Equals compares PeerIDs
+func (p1 *PeerID) Equals(p2 PeerID) bool {
+	if (bytes.Compare(p1.IP, p2.IP) == 0) && (bytes.Compare(p1.PublicKey, p2.PublicKey) == 0) {
+		return true
+	}
+	return false
 }
 
 // Peer represents a connected remote node
@@ -47,7 +56,6 @@ func newPeer(c net.Conn, pID PeerID) Peer {
 	return peer
 }
 
-// Send is used for sending the message to the corresponding peer
 func (p *Peer) Send(msg Msg) {
 	SendMsg(p.rw, msg)
 }
@@ -55,6 +63,7 @@ func (p *Peer) Send(msg Msg) {
 func (p *Peer) readLoop(readErr chan error) {
 	for {
 		msg, err := ReadMsg(p.rw)
+		msg.Sender = p.ID
 		if err != nil {
 			select {
 			case readErr <- err:
@@ -62,7 +71,14 @@ func (p *Peer) readLoop(readErr chan error) {
 			}
 			return
 		}
-		go p.handleMsg(msg)
+		err = p.handleMsg(msg)
+		if err != nil {
+			select {
+			case p.ec <- err:
+			case <-p.closed:
+			}
+			return
+		}
 	}
 }
 
@@ -101,10 +117,7 @@ func (p *Peer) handleMsg(msg Msg) error {
 		SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
-
-	case msg.ID < baseprotoLength:
-		return errors.New("Invalid msg")
-	default:
+	case msg.ID > 31:
 		select {
 		case p.in <- msg:
 		case <-p.closed:

@@ -1,25 +1,26 @@
 package p2p
 
-import "net"
-
-import "bytes"
-
-import "encoding/binary"
-
-import "time"
+import (
+	"bytes"
+	"encoding/binary"
+	"net"
+	"time"
+)
 
 const (
-	rwDeadline = 2 * time.Second
+	rwDeadline = 30 * time.Second
 )
 
 // Msg is the structure of all the msgs in the p2p network
 type Msg struct {
+	Sender     PeerID
 	ID         uint32
 	LenPayload uint32
 	Payload    []byte
 }
 
-func (msg *Msg) encode() []byte {
+// Encode serializes the msg
+func (msg *Msg) Encode() []byte {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.LittleEndian, msg.ID)
 	binary.Write(buf, binary.LittleEndian, msg.LenPayload)
@@ -36,8 +37,8 @@ func ReadMsg(conn net.Conn) (Msg, error) {
 	if err != nil {
 		return msg, err
 	}
-	binary.Read(bytes.NewReader(bufHeader[:4]), binary.LittleEndian, msg.ID)
-	binary.Read(bytes.NewReader(bufHeader[4:]), binary.LittleEndian, msg.LenPayload)
+	binary.Read(bytes.NewReader(bufHeader[:4]), binary.LittleEndian, &msg.ID)
+	binary.Read(bytes.NewReader(bufHeader[4:]), binary.LittleEndian, &msg.LenPayload)
 	bufPayload := make([]byte, msg.LenPayload)
 	_, err = conn.Read(bufPayload)
 	if err != nil {
@@ -51,6 +52,7 @@ func ReadMsg(conn net.Conn) (Msg, error) {
 func SendMsg(conn net.Conn, msg Msg) error {
 	// serialize the msg to be sent over the socket
 	conn.SetWriteDeadline(time.Now().Add(rwDeadline)) // timeout
-	_, err := conn.Write(msg.encode())
+	buf := msg.Encode()
+	_, err := conn.Write(buf)
 	return err
 }

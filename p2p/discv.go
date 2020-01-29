@@ -1,11 +1,14 @@
 package p2p
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -38,40 +41,45 @@ func FindPeers(host PeerID) []PeerID {
 		}
 	}
 
-	// check if the query to all discovery nodes are unsuccessful
-	if len(peers) == 0 {
-		log.Fatal("Discovery service down")
-	}
-
 	return peers
 }
 
 func queryDiscoveryService(servAddr string, localID PeerID) ([]PeerID, error) {
 
-	query := []byte{0x04}
-	query = append(query, localID.IP...)
-	query = append(query, localID.PublicKey...)
-
 	// querying the discovery service
-
-	udpAddr, _ := net.ResolveUDPAddr("udp4", servAddr)
-	conn, err := net.DialUDP("udp", nil, udpAddr)
+	conn, err := net.Dial("tcp", servAddr)
 	if err != nil {
 		return nil, err
 	}
-	conn.WriteToUDP(query, udpAddr)
+	ip := conn.LocalAddr().String()
+	ip = ip[:strings.IndexByte(ip, ':')]
+	localID.IP = serializeIPAddr(ip)
+	query := []byte{0x04}
+	query = append(query, localID.IP...)
+	query = append(query, localID.PublicKey...)
+	_, err = conn.Write(query)
+	if err != nil {
+		log.Println(err)
+	}
 	buf := make([]byte, 1024)
 
 	// response from discovery service
-	l, _, _ := conn.ReadFromUDP(buf)
+	l, _ := conn.Read(buf)
 	var peers []PeerID
 	err = json.Unmarshal(buf[:l], &peers)
 	if err != nil {
 		return nil, err
 	}
-
-	// sending the acknowledgment
-	conn.WriteToUDP([]byte{0x05}, udpAddr)
-
 	return peers, nil
+}
+
+func serializeIPAddr(IP string) []byte {
+	ipFields := strings.Split(IP, ".")
+	buf := new(bytes.Buffer)
+	var i int
+	for _, fields := range ipFields {
+		i, _ = strconv.Atoi(fields)
+		binary.Write(buf, binary.LittleEndian, uint8(i))
+	}
+	return buf.Bytes()
 }

@@ -1,23 +1,22 @@
 package main
 
 import (
-	"time"
-	"net"
-	"log"
-	"sync"
-	"encoding/json"
 	d "GO-DAG/Discovery"
-	"math/rand"
-	"strings"
+	"encoding/json"
 	"fmt"
+	"math/rand"
+	"net"
+	"strings"
+	"sync"
 )
 
 type ActiveNodes struct {
-	Mux sync.Mutex 
+	Mux              sync.Mutex
 	GatewayNodeAddrs []string
 	StorageNodeAddrs []string
 }
 
+/*
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	var nodes ActiveNodes
@@ -30,23 +29,24 @@ func main() {
 		go HandleRequest(conn,&nodes)
 	}
 }
+*/
 
 func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
-	buf := make([]byte,1024)
-	l,err := conn.Read(buf)
+	buf := make([]byte, 1024)
+	l, err := conn.Read(buf)
 	if err != nil {
 		return
 	}
 	addr := conn.RemoteAddr().String()
-	ip := addr[:strings.IndexByte(addr,':')]
-	ip = ip + ":9000" 
+	ip := addr[:strings.IndexByte(addr, ':')]
+	ip = ip + ":9000"
 	var req d.Request
-	err = json.Unmarshal(buf[:l],&req)
+	err = json.Unmarshal(buf[:l], &req)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println(req.NodeType)
-	var randomnodes []string 
+	var randomnodes []string
 	if req.NodeType == "StorageNode" {
 		nodes.Mux.Lock()
 		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
@@ -57,28 +57,28 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 			if ActiveNodes_gateway != 0 {
 				perm1 = rand.Perm(ActiveNodes_storage)
 				perm2 = rand.Perm(ActiveNodes_gateway)
-				randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
-				randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
+				randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[0]])
+				randomnodes = append(randomnodes, nodes.GatewayNodeAddrs[perm2[0]])
 			} else {
 				perm1 = rand.Perm(ActiveNodes_storage)
 				if ActiveNodes_storage > 1 {
-					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
-					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[1]])
+					randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[0]])
+					randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[1]])
 				} else {
-					randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+					randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[0]])
 				}
 			}
 		}
-		reply,_ := json.Marshal(randomnodes)
+		reply, _ := json.Marshal(randomnodes)
 		conn.Write(reply)
-		nodes.StorageNodeAddrs = append(nodes.StorageNodeAddrs,ip)
+		nodes.StorageNodeAddrs = append(nodes.StorageNodeAddrs, ip)
 		fmt.Println(nodes.StorageNodeAddrs)
 		fmt.Println(nodes.GatewayNodeAddrs)
 		nodes.Mux.Unlock()
 		conn.Close()
-	} else if req.NodeType == "GatewayNode"{
+	} else if req.NodeType == "GatewayNode" {
 		nodes.Mux.Lock()
-		AllNodes := append(nodes.GatewayNodeAddrs,nodes.StorageNodeAddrs...)
+		AllNodes := append(nodes.GatewayNodeAddrs, nodes.StorageNodeAddrs...)
 		ActiveNodes := len(AllNodes)
 		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
 		ActiveNodes_gateway := len(nodes.GatewayNodeAddrs)
@@ -86,33 +86,33 @@ func HandleRequest(conn net.Conn, nodes *ActiveNodes) {
 		var perm2 []int
 		if ActiveNodes_gateway == 0 {
 			perm1 = rand.Perm(ActiveNodes_storage)
-			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+			randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[0]])
 			if ActiveNodes_storage > 1 {
-				randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[1]])
+				randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[1]])
 			}
 		} else if ActiveNodes_gateway == 1 {
 			perm1 = rand.Perm(ActiveNodes_storage)
 			perm2 = rand.Perm(ActiveNodes_gateway)
-			randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
-			randomnodes = append(randomnodes,nodes.StorageNodeAddrs[perm1[0]])
+			randomnodes = append(randomnodes, nodes.GatewayNodeAddrs[perm2[0]])
+			randomnodes = append(randomnodes, nodes.StorageNodeAddrs[perm1[0]])
 		} else {
 			perm1 = rand.Perm(ActiveNodes)
 			perm2 = rand.Perm(ActiveNodes_gateway)
-			randomnodes = append(randomnodes,nodes.GatewayNodeAddrs[perm2[0]])
+			randomnodes = append(randomnodes, nodes.GatewayNodeAddrs[perm2[0]])
 			if randomnodes[0] == AllNodes[perm1[0]] {
-				randomnodes = append(randomnodes,AllNodes[perm1[1]])
+				randomnodes = append(randomnodes, AllNodes[perm1[1]])
 			} else {
-				randomnodes = append(randomnodes,AllNodes[perm1[0]])
+				randomnodes = append(randomnodes, AllNodes[perm1[0]])
 			}
 		}
-		reply,_ := json.Marshal(randomnodes)
+		reply, _ := json.Marshal(randomnodes)
 		conn.Write(reply)
-		nodes.GatewayNodeAddrs = append(nodes.GatewayNodeAddrs,ip)
+		nodes.GatewayNodeAddrs = append(nodes.GatewayNodeAddrs, ip)
 		fmt.Println(nodes.StorageNodeAddrs)
 		fmt.Println(nodes.GatewayNodeAddrs)
 		nodes.Mux.Unlock()
 		conn.Close()
-	} else if req.NodeType == "UserNode"{
+	} else if req.NodeType == "UserNode" {
 		nodes.Mux.Lock()
 		ActiveNodes_storage := len(nodes.StorageNodeAddrs)
 		var perm1 []int
