@@ -8,7 +8,6 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
-	"log"
 	"time"
 )
 
@@ -37,7 +36,6 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	sign := Crypto.Sign(h[:], cli.PrivateKey)
 	msg.Payload = append(b, sign...)
 	msg.LenPayload = uint32(len(msg.Payload))
-	log.Println(Crypto.EncodeToHex(tx.LeftTip[:]))
 	cli.Send <- msg
 	storage.AddTransaction(cli.DAG, tx, sign)
 	return

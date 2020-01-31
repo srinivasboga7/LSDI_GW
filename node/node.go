@@ -1,7 +1,5 @@
 package node
 
-// package node which contains the business logic of DAG Blockchain
-
 import (
 	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
@@ -24,7 +22,7 @@ func New(hostID p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
 	go func() {
 		for {
 			p := <-srv.NewPeer
-			go handle(p, srv.BroadcastMsg, dag)
+			go handle(p, srv.BroadcastMsg, dag, srv.RemovePeer)
 		}
 	}()
 	sync.Sync(dag, srv.GetRandomPeer())
@@ -41,7 +39,7 @@ func NewBootstrap(hostID p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
 	go func() {
 		for {
 			p := <-srv.NewPeer
-			go handle(p, srv.BroadcastMsg, dag)
+			go handle(p, srv.BroadcastMsg, dag, srv.RemovePeer)
 		}
 	}()
 	return srv.BroadcastMsg
@@ -55,7 +53,6 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p p2p.Peer) {
 		if validTransaction(tx, sign) {
 			if storage.AddTransaction(dag, tx, sign) != 0 {
 				send <- msg
-				log.Println(tx.Hash)
 			}
 		}
 	} else if msg.ID == 34 {
@@ -78,10 +75,11 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p p2p.Peer) {
 }
 
 // read the messages and handle
-func handle(p p2p.Peer, send chan p2p.Msg, dag *dt.DAG) {
+func handle(p p2p.Peer, send chan p2p.Msg, dag *dt.DAG, errChan chan p2p.Peer) {
 	for {
 		msg, err := p.GetMsg()
 		if err != nil {
+			errChan <- p
 			log.Println(err)
 			break
 		}

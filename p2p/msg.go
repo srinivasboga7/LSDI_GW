@@ -30,7 +30,6 @@ func (msg *Msg) Encode() []byte {
 
 // ReadMsg reads the msg from the socket
 func ReadMsg(conn net.Conn) (Msg, error) {
-	conn.SetReadDeadline(time.Now().Add(rwDeadline))
 	bufHeader := make([]byte, 8)
 	var msg Msg
 	_, err := conn.Read(bufHeader)
@@ -40,6 +39,7 @@ func ReadMsg(conn net.Conn) (Msg, error) {
 	binary.Read(bytes.NewReader(bufHeader[:4]), binary.LittleEndian, &msg.ID)
 	binary.Read(bytes.NewReader(bufHeader[4:]), binary.LittleEndian, &msg.LenPayload)
 	bufPayload := make([]byte, msg.LenPayload)
+	conn.SetReadDeadline(time.Now().Add(rwDeadline))
 	_, err = conn.Read(bufPayload)
 	if err != nil {
 		return msg, err

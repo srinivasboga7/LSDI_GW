@@ -56,8 +56,10 @@ func newPeer(c net.Conn, pID PeerID) Peer {
 	return peer
 }
 
-func (p *Peer) Send(msg Msg) {
-	SendMsg(p.rw, msg)
+// Send ...
+func (p *Peer) Send(msg Msg) error {
+	err := SendMsg(p.rw, msg)
+	return err
 }
 
 func (p *Peer) readLoop(readErr chan error) {

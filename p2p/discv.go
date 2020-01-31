@@ -14,7 +14,7 @@ import (
 
 // FindPeers fetches some peers by querying the discovery service
 // The Bootstrap disocvery nodes are provided in a file
-func FindPeers(host PeerID) []PeerID {
+func FindPeers(host *PeerID) []PeerID {
 	var peers []PeerID
 
 	// reading from the file containing discv nodes
@@ -44,10 +44,11 @@ func FindPeers(host PeerID) []PeerID {
 	return peers
 }
 
-func queryDiscoveryService(servAddr string, localID PeerID) ([]PeerID, error) {
+func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 
 	// querying the discovery service
 	conn, err := net.Dial("tcp", servAddr)
+	log.Println("Dialed the discovery server")
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +66,19 @@ func queryDiscoveryService(servAddr string, localID PeerID) ([]PeerID, error) {
 
 	// response from discovery service
 	l, _ := conn.Read(buf)
-	var peers []PeerID
+	var peers [][]byte
 	err = json.Unmarshal(buf[:l], &peers)
 	if err != nil {
 		return nil, err
 	}
-	return peers, nil
+	var p []PeerID
+	for _, peer := range peers {
+		var s PeerID
+		s.IP = peer[:4]
+		s.PublicKey = peer[4:]
+		p = append(p, s)
+	}
+	return p, nil
 }
 
 func serializeIPAddr(IP string) []byte {

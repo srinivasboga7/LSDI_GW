@@ -35,6 +35,7 @@ type Server struct {
 	mux          sync.Mutex
 	NewPeer      chan Peer
 	BroadcastMsg chan Msg
+	RemovePeer   chan Peer
 	// ...
 }
 
@@ -42,6 +43,7 @@ type Server struct {
 func (srv *Server) GetRandomPeer() Peer {
 	var p Peer
 	for {
+		time.Sleep(time.Second)
 		srv.mux.Lock()
 		if len(srv.peers) > 0 {
 			p = srv.peers[0]
@@ -124,7 +126,7 @@ func (srv *Server) AddPeer(p Peer) {
 }
 
 // RemovePeer ...
-func (srv *Server) RemovePeer(peer Peer) {
+func (srv *Server) removePeer(peer Peer) {
 	// terminate the corresponding go routine and cleanup
 	srv.mux.Lock()
 	for i, p := range srv.peers {
@@ -180,11 +182,9 @@ func (srv *Server) Run() {
 	go srv.listenForConns()
 	time.Sleep(time.Second)
 
-	// start the discovery and request peers
+	// start the discovery and request peer
 	var pIds []PeerID
-	pIds = FindPeers(srv.HostID)
-	// pIds = append(pIds, srv.HostID)
-
+	pIds = FindPeers(&srv.HostID)
 	// iteratively connect with peers
 	for _, pID := range pIds {
 		// handshake phase
@@ -205,6 +205,8 @@ func (srv *Server) Run() {
 			Send(msg, srv.peers)
 		case <-srv.ec:
 			log.Fatal("error")
+		case p := <-srv.RemovePeer:
+			srv.removePeer(p)
 		}
 	}
 }
@@ -217,8 +219,7 @@ func Send(msg Msg, peers []Peer) {
 			err = SendMsg(p.rw, msg)
 		}
 		if err != nil {
-			// signal an error
-			p.ec <- err
+			log.Println("problem sending to peer", string(p.ID.PublicKey))
 		}
 	}
 }

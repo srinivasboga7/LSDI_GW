@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -15,7 +14,6 @@ import (
 )
 
 type peerAddr struct {
-	GWSN        bool
 	networkAddr []byte
 	PublicKey   []byte
 }
@@ -43,13 +41,13 @@ func (nodes *liveNodes) appendTo(IP []byte, PublicKey []byte, GS bool) {
 	nodes.mux.Lock()
 	if GS {
 		if find(nodes.GWAddr, newPeer) {
-			fmt.Println("Active Node requesting the peers")
+			log.Println("Active Node requesting the peers")
 		} else {
 			nodes.GWAddr = append(nodes.GWAddr, newPeer)
 		}
 	} else {
 		if find(nodes.SNAddr, newPeer) {
-			fmt.Println("Active Node requesting the peers")
+			log.Println("Active Node requesting the peers")
 		} else {
 			nodes.SNAddr = append(nodes.SNAddr, newPeer)
 		}
@@ -79,7 +77,9 @@ func (nodes *liveNodes) remove(GWNodes []peerAddr, SNNodes []peerAddr) {
 }
 
 func constructPing() []byte {
-	return []byte{0x01}
+	ping := []byte{0x01}
+	ping = append(ping, []byte{0x00}...)
+	return ping
 }
 
 func checkPong(b []byte) bool {
@@ -120,7 +120,7 @@ func pingNodes(nodes *liveNodes, interval int) {
 		if err != nil {
 			// remove the peer
 			expiredGWNodes = append(expiredGWNodes, node)
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 		conn.WriteToUDP(constructPing(), peerUDPAddr)
@@ -140,8 +140,8 @@ func pingNodes(nodes *liveNodes, interval int) {
 		if err != nil {
 			// remove the peer
 			expiredSNNodes = append(expiredSNNodes, node)
-			fmt.Println("Node down ", conn.RemoteAddr().String())
-			fmt.Println(err)
+			log.Println("Node down ", conn.RemoteAddr().String())
+			log.Println(err)
 			continue
 		}
 		conn.WriteToUDP(constructPing(), peerUDPAddr)
@@ -151,7 +151,7 @@ func pingNodes(nodes *liveNodes, interval int) {
 		if !checkPong(buffer) {
 			// remove the peer
 			expiredSNNodes = append(expiredSNNodes, node)
-			fmt.Println("Node down ", conn.RemoteAddr().String())
+			log.Println("Node down ", conn.RemoteAddr().String())
 		}
 	}
 	nodes.remove(expiredGWNodes, expiredSNNodes)
@@ -165,7 +165,7 @@ func getRandomPeers(GWNodes []peerAddr, SNNodes []peerAddr, gs bool) []peerAddr 
 	if gs {
 		if lenGWNodes == 1 {
 			peers = append(peers, GWNodes[0])
-			peers = append(peers, SNNodes[rand.Intn(lenSNNodes)])
+			// peers = append(peers, SNNodes[rand.Intn(lenSNNodes)])
 		} else if lenGWNodes > 1 {
 			peers = append(peers, GWNodes[rand.Intn(lenGWNodes)])
 			//
@@ -195,14 +195,18 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 	buffer := make([]byte, 1024)
 	l, err := conn.Read(buffer)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	IP, PubKey, GS := deserialize(buffer[:l])
 	nodes.mux.RLock()
 	randomPeers := getRandomPeers(nodes.GWAddr, nodes.SNAddr, GS)
 	nodes.mux.RUnlock()
-	b, _ := json.Marshal(randomPeers)
+	var p [][]byte
+	for _, peer := range randomPeers {
+		p = append(p, append(peer.networkAddr, peer.PublicKey...))
+	}
+	b, _ := json.Marshal(p)
 	conn.Write(b)
 	nodes.appendTo(IP, PubKey, GS)
 	return
@@ -216,10 +220,10 @@ func checkDB(nodes *liveNodes) {
 
 func main() {
 	port := os.Args[1]
-	fmt.Println("Discovery service running")
+	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
 	checkDB(&nodes)
-	go pingNodes(&nodes, 100)
+	// go pingNodes(&nodes, 100)
 
 	listener, err := net.Listen("tcp", ":"+port)
 
@@ -232,6 +236,7 @@ func main() {
 			log.Println(err)
 			continue
 		}
+		log.Println("New connection", conn.RemoteAddr().String())
 		go handleConnection(conn, &nodes)
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
+	"log"
 	"reflect"
 )
 
@@ -53,7 +53,7 @@ func Decode(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
 	var tx dt.Transaction
 	err := binary.Read(r, binary.LittleEndian, &tx)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return tx, signature
 }

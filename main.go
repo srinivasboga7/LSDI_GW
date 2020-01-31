@@ -8,7 +8,6 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"os"
-	"time"
 )
 
 func main() {
@@ -41,8 +40,8 @@ func main() {
 func constructGenisis() dt.Vertex {
 	var tx dt.Transaction
 	tx.Hash = Crypto.Hash([]byte("IOT BLOCKCHAIN GENISIS"))
-	tx.Timestamp = time.Now().UnixNano()
 	var v dt.Vertex
 	v.Tx = tx
+	v.Signature = make([]byte, 72)
 	return v
 }
