@@ -26,11 +26,12 @@ const (
 type PeerID struct {
 	IP        []byte
 	PublicKey []byte
+	ShardID   uint32
 }
 
 // Equals compares PeerIDs
 func (p1 *PeerID) Equals(p2 PeerID) bool {
-	if (bytes.Compare(p1.IP, p2.IP) == 0) && (bytes.Compare(p1.PublicKey, p2.PublicKey) == 0) {
+	if (bytes.Compare(p1.IP, p2.IP) == 0) && (bytes.Compare(p1.PublicKey, p2.PublicKey) == 0) && (p1.ShardID == p2.ShardID) {
 		return true
 	}
 	return false
@@ -56,6 +57,7 @@ func newPeer(c net.Conn, pID PeerID) Peer {
 	return peer
 }
 
+//Send sends
 func (p *Peer) Send(msg Msg) {
 	SendMsg(p.rw, msg)
 }

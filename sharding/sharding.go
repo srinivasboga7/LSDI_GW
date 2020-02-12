@@ -1,70 +1,46 @@
 package sharding
 
 import (
+	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
 	pow "GO-DAG/Pow"
+	"GO-DAG/serialize"
+	"errors"
+	"fmt"
+	"log"
 	"time"
-	"math/rand"
 )
 
+//VerifyDiscovery verifies shard signal from discovery
 func VerifyDiscovery(PuK, msg dt.ShardSignal, signature []byte) bool {
 	//Deserialise the message
 	//Verify signature using PuK
 	//Return valid or not
+	return true
 }
 
-
-// DeserialiseMsg deserialises the message stream shardsignal
-func DeserialiseMsg(stream []byte) dt.ShardSignal {
-	//Deserialise to shardsignal format
-	return 
-}
-
-func Broadcast()
-
-func StartServer(myShardNo int, difficulty int) []string {
-	var ShardNodesIpList []string
-	ShardNodesIpList = StartServer(tx[ShardNo], difficulty)
-	rand.Seed(time.Now().UnixNano())
-	orderToConnect := rand.Perm(len(ShardNodesIpList))
-	DisconnectOldConn()
-	MakeNewConn(orderToConnect)
-	var ShardNodes []string
-	while(threshold not reached) {
-		//Recieve transaction
-		if rctx[ShardNo]==myShardNo {
-			if VerifyShardTransaction(rctx, signature, difficulty) {
-				ShardNodes = append(ShardNodes,ip)
-			}
-		}
-	}
-}
-
-
+//VerifyShardTransaction verifies shard transaction
 func VerifyShardTransaction(tx dt.ShardTransaction, signature []byte, difficulty int) bool {
 	//Verify Puk
 	//Verify signature
 	//Verify Pow
 	//Verify Shard number
-	s := serialize.SerializeData(tx)
+	s := serialize.Encode(tx)
 	SerialKey := tx.From
 	PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
 	h := Crypto.Hash(s)
-	sigVerify := Crypto.Verify(signature,PublicKey,h[:])
+	sigVerify := Crypto.Verify(signature, PublicKey, h[:])
 	if sigVerify == false {
 		log.Println("INVALID SIGNATURE")
 		fmt.Println()
 	}
-	return sigVerify && pow.VerifyPoW(tx,difficulty) && tx[ShardNo] == tx[Nonce]%2
+	return sigVerify && pow.VerifyPoW(tx, difficulty) && tx.ShardNo == tx.Nonce%2
 }
 
-//RecvdMssg Call on recieving sharding signal from discovery after forwarding it
-func StartSharding(Puk, msgStream []byte, signature []byte) (dt.ShardTransaction,error) {
-	//Deserialise message, seperate signature
-	//Verify if recieved from valid gateway
+//MakeShardingtx Call on recieving sharding signal from discovery after forwarding it
+func MakeShardingtx(Puk, Signal dt.ShardSignal, signature []byte) (dt.ShardTransaction, error) {
 	difficulty := 4
-	signal, sign := serialize.DeserializeShardSignal(msgStream, "ShardSignal")
-	if VerifyDiscovery(PukDiscovery, signal, sign) {
+	if VerifyDiscovery(PukDiscovery, Signal, signature) {
 		//Create transaction
 		var tx dt.ShardTransaction
 		tx.From = Puk
@@ -73,8 +49,6 @@ func StartSharding(Puk, msgStream []byte, signature []byte) (dt.ShardTransaction
 		tx.ShardNo = 0
 		//Do PoW
 		pow.PoW(&tx, difficulty)
-		//Broadcast to network
-		Broadcast()
 		//Wait for recieving messages
 		//	//Verify each recvd pow and add to buffer
 		//	//Wait till threshold or timeout

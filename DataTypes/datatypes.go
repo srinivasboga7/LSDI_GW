@@ -25,7 +25,7 @@ type ShardSignal struct {
 type ShardTransaction struct {
 	Timestamp int64
 	From      [65]byte
-	ShardNo   int
+	ShardNo   uint32
 	Nonce     uint32
 }
 

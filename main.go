@@ -27,15 +27,45 @@ func main() {
 	dag.Graph[Crypto.EncodeToHex(genisisHash[:])] = v
 	var ch chan p2p.Msg
 	if os.Args[1] == "b" {
-		ch = node.NewBootstrap(ID, &dag)
+		ch, shsch, shtxch = node.NewBootstrap(ID, &dag)
 	} else {
-		ch = node.New(ID, &dag)
+		ch, shsch, shtxch = node.New(ID, &dag)
 	}
 	var cli client.Client
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
-	cli.SimulateClient()
+	go cli.SimulateClient()
+	for {
+		select {
+		case signal := <-shsch:
+			Shardingtx, err := sh.MakeShardingtx(Puk, signal, sign)
+			*localShardNo = Shardingtx.ShardNo
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			sendStream := serialize.Encode(Shardingtx)
+			var msg p2p.Msg
+			msg.ID = 36
+			msg.Payload = sendStream
+			msg.LenPayload = uint32(len(msg.Payload))
+			send <- msg
+			log.Println("Sharding broadcast..")
+			log.Println(Shardingtx)
+		case Shardingtx := <-shtxch:
+			if len(NewShardList) > 7 && *myShardNo != -1 {
+				log.Println("Threshold broken")
+				*myShardNo = -1
+				OldShardList = NewShardList
+				NewShardList = make([]string)
+				rand.Seed(time.Now().UnixNano())
+				orderToConnect := rand.Perm(len(OldShardList))
+				DisconnectOldConn()
+				MakeNewConn(orderToConnect)
+			}
+		}
+	}
 }
 
 func constructGenisis() dt.Vertex {

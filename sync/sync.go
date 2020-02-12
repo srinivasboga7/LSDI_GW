@@ -24,7 +24,7 @@ func Sync(dag *dt.DAG, p p2p.Peer) {
 		msg.LenPayload = uint32(len(msg.Payload))
 		p.Send(msg)
 		replyMsg, _ = p.GetMsg()
-		tx, sign := serialize.Decode(replyMsg.Payload, replyMsg.LenPayload)
+		tx, sign := serialize.Decode32(replyMsg.Payload, replyMsg.LenPayload)
 		storage.AddTransaction(dag, tx, sign)
 	}
 }

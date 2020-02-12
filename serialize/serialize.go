@@ -46,33 +46,38 @@ func EncodeToBytes(x interface{}) []byte {
 	}
 }
 
-//DeserializeTransaction Converts back byte slice to transaction
-func DeserializeTransaction(payload []byte, lenPayload uint32, Type string) (interface{}, []byte) {
+//Decode32 Converts back byte slice to transaction
+func Decode32(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
 	signature := payload[lenPayload-72:]
 	r := bytes.NewReader(payload[:lenPayload-72])
-	switch Type {
-	case "DataTx":
-		var tx dt.Transaction
-		err := binary.Read(r, binary.LittleEndian, &tx)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return tx, signature
-	case "ShardSignal":
-		var tx dt.ShardSignal
-		err := binary.Read(r, binary.LittleEndian, &tx)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return tx, signature
-	case "ShardTx":
-		var tx dt.ShardTransaction
-		err := binary.Read(r, binary.LittleEndian, &tx)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return tx, signature
-	default:
-		return nil, nil
+	var tx dt.Transaction
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
+		fmt.Println(err)
 	}
+	return tx, signature
+}
+
+//Decode35 Converts back byte slice to transaction
+func Decode35(payload []byte, lenPayload uint32) (dt.ShardSignal, []byte) {
+	signature := payload[lenPayload-72:]
+	r := bytes.NewReader(payload[:lenPayload-72])
+	var tx dt.ShardSignal
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return tx, signature
+}
+
+//Decode36 Converts back byte slice to transaction
+func Decode36(payload []byte, lenPayload uint32) (dt.ShardTransaction, []byte) {
+	signature := payload[lenPayload-72:]
+	r := bytes.NewReader(payload[:lenPayload-72])
+	var tx dt.ShardTransaction
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return tx, signature
 }

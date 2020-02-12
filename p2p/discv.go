@@ -70,6 +70,7 @@ func queryDiscoveryService(servAddr string, localID PeerID) ([]PeerID, error) {
 	if err != nil {
 		return nil, err
 	}
+	localID.ShardID = peers[0].ShardID
 	return peers, nil
 }
 
