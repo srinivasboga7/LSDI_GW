@@ -38,7 +38,7 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			dag.Genisis = h
 			dag.Graph[h] = node
 			duplicationCheck = 1
-			// db.AddToDb(Txid, s)
+			db.AddToDb(Txid, s)
 		} else {
 			left := serialize.EncodeToHex(tx.LeftTip[:])
 			right := serialize.EncodeToHex(tx.RightTip[:])
@@ -65,7 +65,7 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 					dag.Graph[serialize.EncodeToHex(tx.RightTip[:])] = r
 				}
 				duplicationCheck = 1
-				// db.AddToDb(Txid, s)
+				db.AddToDb(Txid, s)
 			}
 		}
 	}
@@ -79,11 +79,11 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 //GetTransactiondb Wrapper function for GetTransaction in db module
 func GetTransactiondb(Txid []byte) (dt.Transaction, []byte) {
 	stream := db.GetValue(Txid)
-	return serialize.Decode(stream, uint32(len(stream)))
+	return serialize.DeserializeTransaction(stream, uint32(len(stream)))
 }
 
-//checkifPresentDb Wrapper function for CheckKey in db module
-func checkifPresentDb(Txid []byte) bool {
+//CheckifPresentDb Wrapper function for CheckKey in db module
+func CheckifPresentDb(Txid []byte) bool {
 	return db.CheckKey(Txid)
 }
 

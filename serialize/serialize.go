@@ -46,8 +46,8 @@ func EncodeToBytes(x interface{}) []byte {
 	}
 }
 
-//Decode Converts back byte slice to transaction
-func Decode(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
+//DeserializeTransaction Converts back byte slice to transaction
+func DeserializeTransaction(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
 	signature := payload[lenPayload-72:]
 	r := bytes.NewReader(payload[:lenPayload-72])
 	var tx dt.Transaction

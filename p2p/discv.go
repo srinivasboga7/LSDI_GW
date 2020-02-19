@@ -40,7 +40,6 @@ func FindPeers(host *PeerID) []PeerID {
 			break
 		}
 	}
-
 	return peers
 }
 
@@ -75,10 +74,38 @@ func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 	for _, peer := range peers {
 		var s PeerID
 		s.IP = peer[:4]
-		s.PublicKey = peer[4:]
+		s.PublicKey = peer[4:69]
+		s.ShardID = peer[69:]
 		p = append(p, s)
 	}
 	return p, nil
+}
+
+func constructUpdateShardID(p PeerID) []byte {
+	b := []byte{0x06}
+	b = append(b, p.IP...)
+	b = append(b, p.PublicKey...)
+	b = append(b, p.ShardID...)
+	return b
+}
+
+func updateShardID(host PeerID) {
+	f, err := os.Open("bootstrapNodes.txt")
+	if err != nil {
+		log.Fatal("Problem opening the file containing bootstrap nodes")
+	}
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Fatal("Incosistent file containing bootstrap nodes")
+	}
+
+	// bootstrapNodes is the list of some of the discv nodes
+	bootstrapNodes := strings.Split(string(b), "\n")
+	for _, node := range bootstrapNodes {
+		conn, _ := net.Dial("tcp", node)
+		conn.Write(constructUpdateShardID(host))
+		conn.Close()
+	}
 }
 
 func serializeIPAddr(IP string) []byte {

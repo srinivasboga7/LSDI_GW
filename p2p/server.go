@@ -85,8 +85,7 @@ func (srv *Server) setupConn(conn net.Conn) error {
 
 	p := newPeer(conn, pid)
 	srv.AddPeer(p)
-	srv.NewPeer <- p
-
+	srv.NewPeer <- *p
 	return nil
 }
 
@@ -117,9 +116,9 @@ func (srv *Server) performHandshake(c net.Conn, p PeerID) error {
 }
 
 // AddPeer ...
-func (srv *Server) AddPeer(p Peer) {
+func (srv *Server) AddPeer(p *Peer) {
 	srv.mux.Lock()
-	srv.peers = append(srv.peers, p)
+	srv.peers = append(srv.peers, *p)
 	srv.mux.Unlock()
 	go p.run()
 	return
@@ -142,7 +141,7 @@ func (srv *Server) removePeer(peer Peer) {
 }
 
 func (srv *Server) listenForConns() {
-	listener, _ := net.Listen("tcp", ":8080")
+	listener, _ := net.Listen("tcp", ":8060")
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -155,7 +154,7 @@ func (srv *Server) listenForConns() {
 
 func parseAddr(b []byte) string {
 	addr := strconv.Itoa(int(b[0])) + "." + strconv.Itoa(int(b[1])) + "."
-	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3])) + ":8080"
+	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3])) + ":8060"
 	return addr
 }
 
@@ -177,7 +176,6 @@ func (srv *Server) initiateConnection(pID PeerID) (net.Conn, error) {
 func (srv *Server) Run() {
 
 	srv.ec = make(chan error)
-	srv.NewPeer = make(chan Peer)
 	// start the server
 	go srv.listenForConns()
 	time.Sleep(time.Second)
@@ -194,7 +192,7 @@ func (srv *Server) Run() {
 		} else {
 			p := newPeer(conn, pID)
 			srv.AddPeer(p)
-			srv.NewPeer <- p
+			srv.NewPeer <- *p
 		}
 	}
 
@@ -219,7 +217,7 @@ func Send(msg Msg, peers []Peer) {
 			err = SendMsg(p.rw, msg)
 		}
 		if err != nil {
-			log.Println("problem sending to peer", string(p.ID.PublicKey))
+			log.Println("problem sending to peer")
 		}
 	}
 }

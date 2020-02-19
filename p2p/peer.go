@@ -26,6 +26,7 @@ const (
 type PeerID struct {
 	IP        []byte
 	PublicKey []byte
+	ShardID   []byte
 }
 
 // Equals compares PeerIDs
@@ -38,6 +39,7 @@ func (p1 *PeerID) Equals(p2 PeerID) bool {
 
 // Peer represents a connected remote node
 type Peer struct {
+	mux    *sync.Mutex
 	ID     PeerID
 	rw     net.Conn
 	in     chan Msg // recieves the read msgs
@@ -45,20 +47,23 @@ type Peer struct {
 	closed chan struct{}
 }
 
-func newPeer(c net.Conn, pID PeerID) Peer {
+func newPeer(c net.Conn, pID PeerID) *Peer {
 	peer := Peer{
 		ID:     pID,
 		rw:     c,
 		in:     make(chan Msg, 5), // buffered channel to send the msgs
 		ec:     make(chan error),
 		closed: make(chan struct{}),
+		mux:    new(sync.Mutex),
 	}
-	return peer
+	return &peer
 }
 
 // Send ...
 func (p *Peer) Send(msg Msg) error {
+	p.mux.Lock()
 	err := SendMsg(p.rw, msg)
+	p.mux.Unlock()
 	return err
 }
 
@@ -119,6 +124,7 @@ func (p *Peer) handleMsg(msg Msg) error {
 		SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
+
 	case msg.ID > 31:
 		select {
 		case p.in <- msg:

@@ -10,19 +10,38 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
+)
+
+const (
+	maxNodes = 10
 )
 
 type peerAddr struct {
+	ShardID     []byte
 	networkAddr []byte
 	PublicKey   []byte
 }
 
 // better add a database as the backup
 type liveNodes struct {
+	GWNodes gatewayNodes
+	SNNodes storageNodes
+}
+
+// stores all the gateway nodes in a shard
+type shardNodes struct {
+	ShardID []byte
+	Nodes   []peerAddr
+}
+
+type gatewayNodes struct {
 	mux    sync.RWMutex
-	GWAddr []peerAddr
-	SNAddr []peerAddr
+	shards []shardNodes
+}
+
+type storageNodes struct {
+	mux   sync.RWMutex
+	Nodes []peerAddr
 }
 
 func find(list []peerAddr, element peerAddr) bool {
@@ -34,46 +53,34 @@ func find(list []peerAddr, element peerAddr) bool {
 	return false
 }
 
-func (nodes *liveNodes) appendTo(IP []byte, PublicKey []byte, GS bool) {
-	var newPeer peerAddr
-	newPeer.networkAddr = IP
-	newPeer.PublicKey = PublicKey
-	nodes.mux.Lock()
+func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 	if GS {
-		if find(nodes.GWAddr, newPeer) {
-			log.Println("Active Node requesting the peers")
-		} else {
-			nodes.GWAddr = append(nodes.GWAddr, newPeer)
+		nodes.GWNodes.mux.Lock()
+		for _, shard := range nodes.GWNodes.shards {
+			if bytes.Compare(peer.ShardID, shard.ShardID) == 0 {
+				shard.Nodes = append(shard.Nodes, peer)
+				if len(shard.Nodes) >= maxNodes {
+					go nodes.initiateSharding(shard)
+				}
+				break
+			}
 		}
+		nodes.GWNodes.mux.Unlock()
 	} else {
-		if find(nodes.SNAddr, newPeer) {
-			log.Println("Active Node requesting the peers")
-		} else {
-			nodes.SNAddr = append(nodes.SNAddr, newPeer)
-		}
+		nodes.SNNodes.mux.Lock()
+		nodes.SNNodes.Nodes = append(nodes.SNNodes.Nodes, peer)
+		nodes.SNNodes.mux.Unlock()
 	}
-	nodes.mux.Unlock()
 }
 
 func (nodes *liveNodes) remove(GWNodes []peerAddr, SNNodes []peerAddr) {
-	nodes.mux.Lock()
-	for _, gwnode := range GWNodes {
-		for i, node := range nodes.GWAddr {
-			if bytes.Compare(gwnode.networkAddr, node.networkAddr) == 0 {
-				nodes.GWAddr[i] = nodes.GWAddr[len(nodes.GWAddr)-1]
-				nodes.GWAddr = nodes.GWAddr[:len(nodes.GWAddr)-1]
-			}
-		}
-	}
-	for _, snnode := range SNNodes {
-		for i, node := range nodes.SNAddr {
-			if bytes.Compare(snnode.networkAddr, node.networkAddr) == 0 {
-				nodes.SNAddr[i] = nodes.SNAddr[len(nodes.SNAddr)-1]
-				nodes.SNAddr = nodes.SNAddr[:len(nodes.SNAddr)-1]
-			}
-		}
-	}
-	nodes.mux.Unlock()
+	// temporarily halt , write after testing the other shit
+}
+
+func constructShardSignal() []byte {
+	shardSignal := []byte{0x35}
+	shardSignal = append(shardSignal, []byte{0x00}...)
+	return shardSignal
 }
 
 func constructPing() []byte {
@@ -103,80 +110,85 @@ func parseAddr(b []byte) string {
 	return addr
 }
 
-func pingNodes(nodes *liveNodes, interval int) {
-	var expiredGWNodes []peerAddr
-	var GWNodes []peerAddr
-	var SNNodes []peerAddr
-
-	nodes.mux.RLock()
-	copy(GWNodes, nodes.GWAddr)
-	copy(SNNodes, nodes.SNAddr)
-	nodes.mux.RUnlock()
-
-	for _, node := range GWNodes {
-		time.Sleep(time.Duration(interval) * time.Second)
-		peerUDPAddr, _ := net.ResolveUDPAddr("udp4", parseAddr(node.networkAddr))
-		conn, err := net.DialUDP("udp", nil, peerUDPAddr)
-		if err != nil {
-			// remove the peer
-			expiredGWNodes = append(expiredGWNodes, node)
-			log.Println(err)
-			continue
-		}
-		conn.WriteToUDP(constructPing(), peerUDPAddr)
-		buffer := make([]byte, 1)
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadFromUDP(buffer)
-		if !checkPong(buffer) {
-			// remove the peer
-			expiredGWNodes = append(expiredGWNodes, node)
-		}
-	}
-	var expiredSNNodes []peerAddr
-	for _, node := range SNNodes {
-		time.Sleep(time.Second)
-		peerUDPAddr, _ := net.ResolveUDPAddr("udp4", parseAddr(node.networkAddr))
-		conn, err := net.DialUDP("udp", nil, peerUDPAddr)
-		if err != nil {
-			// remove the peer
-			expiredSNNodes = append(expiredSNNodes, node)
-			log.Println("Node down ", conn.RemoteAddr().String())
-			log.Println(err)
-			continue
-		}
-		conn.WriteToUDP(constructPing(), peerUDPAddr)
-		buffer := make([]byte, 1)
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadFromUDP(buffer)
-		if !checkPong(buffer) {
-			// remove the peer
-			expiredSNNodes = append(expiredSNNodes, node)
-			log.Println("Node down ", conn.RemoteAddr().String())
-		}
-	}
-	nodes.remove(expiredGWNodes, expiredSNNodes)
+func sendShardSignal(nodes shardNodes) {
+	randNode := nodes.Nodes[rand.Intn(len(nodes.Nodes))]
+	conn, _ := net.Dial("tcp", parseAddr(randNode.networkAddr))
+	b := constructShardSignal()
+	conn.Write(b)
+	conn.Close()
 }
 
-func getRandomPeers(GWNodes []peerAddr, SNNodes []peerAddr, gs bool) []peerAddr {
+func (nodes *liveNodes) updateShard(ShardID []byte, IP []byte, PubKey []byte) {
+	nodes.GWNodes.mux.Lock()
+	var peer peerAddr
+	peer.networkAddr = IP
+	peer.PublicKey = PubKey
+	peer.ShardID = ShardID
+	for _, shard := range nodes.GWNodes.shards {
+		if bytes.Compare(ShardID, shard.ShardID) == 0 {
+			shard.Nodes = append(shard.Nodes, peer)
+			break
+		}
+	}
+	nodes.GWNodes.mux.Unlock()
+}
+
+func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
+	sendShardSignal(prevShard)
+	nodes.GWNodes.mux.Lock()
+	for i, shard := range nodes.GWNodes.shards {
+		if bytes.Compare(prevShard.ShardID, shard.ShardID) == 0 {
+			// deleting the old shard
+			nodes.GWNodes.shards[i] = nodes.GWNodes.shards[len(nodes.GWNodes.shards)-1]
+			nodes.GWNodes.shards = nodes.GWNodes.shards[:len(nodes.GWNodes.shards)-1]
+			break
+		}
+	}
+	// creating two new shards
+	var nextShard1, nextShard2 shardNodes
+	nextShard1.ShardID = append(prevShard.ShardID, 0x00)
+	nextShard2.ShardID = append(prevShard.ShardID, 0x01)
+	nodes.GWNodes.shards = append(nodes.GWNodes.shards, nextShard1, nextShard2)
+	nodes.GWNodes.mux.Unlock()
+}
+
+// temporary method optimize if needed
+func getRandomPeers(nodes *liveNodes, peer peerAddr, gs bool) []peerAddr {
 	// find an efficient way to select the peers
 	var peers []peerAddr
-	lenGWNodes := len(GWNodes)
-	lenSNNodes := len(SNNodes)
 	if gs {
-		if lenGWNodes == 1 {
-			peers = append(peers, GWNodes[0])
-			// peers = append(peers, SNNodes[rand.Intn(lenSNNodes)])
-		} else if lenGWNodes > 1 {
-			peers = append(peers, GWNodes[rand.Intn(lenGWNodes)])
-			//
+		nodes.GWNodes.mux.RLock()
+		nodes.SNNodes.mux.RLock()
+		var shard shardNodes
+		for _, shard = range nodes.GWNodes.shards {
+			if bytes.Compare(shard.ShardID, peer.ShardID) == 0 {
+				break
+			}
 		}
+		if len(shard.Nodes) > 0 {
+			perm1 := rand.Perm(len(shard.Nodes))
+			perm2 := rand.Perm(len(nodes.SNNodes.Nodes))
+			peers = append(peers, shard.Nodes[perm1[0]])
+
+			if rand.Intn(2) == 0 {
+				peers = append(peers, shard.Nodes[perm1[1]])
+			} else {
+				peers = append(peers, nodes.SNNodes.Nodes[perm2[0]])
+			}
+		}
+		nodes.SNNodes.mux.RUnlock()
+		nodes.GWNodes.mux.RUnlock()
 	} else {
-		if lenSNNodes == 1 {
-			peers = append(peers, SNNodes[0])
-			peers = append(peers, GWNodes[rand.Intn(lenGWNodes)])
-		} else if lenSNNodes > 1 {
-			peers = append(peers, SNNodes[rand.Intn(lenSNNodes)])
+		nodes.SNNodes.mux.RLock()
+		l := len(nodes.SNNodes.Nodes)
+		perm := rand.Perm(l)
+		if l == 1 {
+			peers = append(peers, nodes.SNNodes.Nodes[perm[0]])
+		} else if l > 1 {
+			peers = append(peers, nodes.SNNodes.Nodes[perm[0]])
+			peers = append(peers, nodes.SNNodes.Nodes[perm[1]])
 		}
+		nodes.SNNodes.mux.RUnlock()
 	}
 	return peers
 }
@@ -198,17 +210,29 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		log.Println(err)
 		return
 	}
-	IP, PubKey, GS := deserialize(buffer[:l])
-	nodes.mux.RLock()
-	randomPeers := getRandomPeers(nodes.GWAddr, nodes.SNAddr, GS)
-	nodes.mux.RUnlock()
-	var p [][]byte
-	for _, peer := range randomPeers {
-		p = append(p, append(peer.networkAddr, peer.PublicKey...))
+	if buffer[0] == 0x06 {
+		IP, PubKey, ShardID := buffer[1:5], buffer[5:70], buffer[70:l]
+		nodes.updateShard(ShardID, IP, PubKey)
+	} else {
+		IP, PubKey, GS := deserialize(buffer[:l])
+		var newPeer peerAddr
+		if GS {
+			x := rand.Intn(len(nodes.GWNodes.shards))
+			newPeer.ShardID = nodes.GWNodes.shards[x].ShardID
+		} else {
+			newPeer.ShardID = []byte{0x2}
+		}
+		newPeer.PublicKey = PubKey
+		newPeer.networkAddr = IP
+		randomPeers := getRandomPeers(nodes, newPeer, GS)
+		var p [][]byte
+		for _, peer := range randomPeers {
+			p = append(p, append(append(peer.networkAddr, peer.PublicKey...), peer.ShardID...))
+		}
+		b, _ := json.Marshal(p)
+		conn.Write(b)
+		nodes.appendTo(newPeer, GS)
 	}
-	b, _ := json.Marshal(p)
-	conn.Write(b)
-	nodes.appendTo(IP, PubKey, GS)
 	return
 }
 
@@ -222,9 +246,9 @@ func main() {
 	port := os.Args[1]
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
-	checkDB(&nodes)
-	// go pingNodes(&nodes, 100)
-
+	var firstShard shardNodes
+	firstShard.ShardID = []byte{0x00}
+	nodes.GWNodes.shards = append(nodes.GWNodes.shards, firstShard)
 	listener, err := net.Listen("tcp", ":"+port)
 
 	if err != nil {

@@ -1,19 +1,20 @@
 package database
 
-import(
+import (
 	badger "github.com/dgraph-io/badger"
 )
 
+var db *badger.DB
+
+// OpenDB opens the database
+func OpenDB() {
+	db, _ = badger.Open(badger.DefaultOptions("/tmp/badger"))
+}
+
 //AddToDb Adds to the database key value pair
 func AddToDb(key []byte, value []byte) {
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
-	if err != nil {
-	  panic(err)
-	}
-	defer db.Close()
 	err1 := db.Update(func(txn *badger.Txn) error {
-		// Your code here…
-		err = txn.Set(key,value)
+		err := txn.Set(key, value)
 		if err != nil {
 			panic(err)
 		}
@@ -22,28 +23,11 @@ func AddToDb(key []byte, value []byte) {
 	if err1 != nil {
 		panic(err1)
 	}
-	// opts := badger.DefaultOptions
-	// opts.Dir = ""
-	// opts.ValueDir = ""
-	// kv, err := badger.NewKV(&opts)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer kv.Close()
-	// err = kv.Set(key,value)
-	// if err != nil {
-	// 	panic(err)
-	// }
 }
 
-
+// GetAllKeys ...
 func GetAllKeys() [][]byte {
-	Keys := make([][]byte,0)
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
-	if err != nil {
-	  panic(err)
-	}
-	defer db.Close()
+	Keys := make([][]byte, 0)
 	err1 := db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchValues = false
@@ -84,16 +68,11 @@ func GetAllKeys() [][]byte {
 	// return Hashes
 }
 
-// GetTransaction returns transaction based on hash value.
+// GetValue returns transaction based on hash value.
 func GetValue(key []byte) []byte {
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
-	if err != nil {
-	  panic(err)
-	}
-	defer db.Close()
 	var valCopy []byte
 	err1 := db.View(func(txn *badger.Txn) error {
-		item,err := txn.Get(key)
+		item, err := txn.Get(key)
 		if err != nil {
 			panic(err)
 		}
@@ -126,7 +105,6 @@ func GetValue(key []byte) []byte {
 	// return item.Value()
 	//return serialize.Deserializedata(item.Value())
 
-
 	// db, err := sql.Open("mysql","Sumanth:sumanth@tcp(127.0.0.1:3306)/dag")
 	// if err != nil {
 	// 	log.Fatal(err)
@@ -157,7 +135,6 @@ func GetValue(key []byte) []byte {
 // 		return false
 // 	}
 
-
 // 	// db, err := sql.Open("mysql","Sumanth:sumanth@tcp(127.0.0.1:3306)/dag")
 // 	// if err != nil {
 // 	// 	log.Fatal(err)
@@ -173,15 +150,10 @@ func GetValue(key []byte) []byte {
 // }
 
 //CheckKey checks if a key-value pair is present in the database, returns true if present else false
-func CheckKey(key []byte) bool{
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
-	if err != nil {
-	  panic(err)
-	}
-	defer db.Close()
+func CheckKey(key []byte) bool {
 	var valCopy bool
 	err1 := db.View(func(txn *badger.Txn) error {
-		_,err := txn.Get(key)
+		_, err := txn.Get(key)
 		if err == badger.ErrKeyNotFound {
 			valCopy = false
 		} else {
