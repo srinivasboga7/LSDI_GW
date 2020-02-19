@@ -195,6 +195,7 @@ func (srv *Server) Run() {
 			p := newPeer(conn, pID)
 			srv.AddPeer(p)
 			srv.NewPeer <- p
+			srv.HostID.ShardID = pID.ShardID
 		}
 	}
 

@@ -47,6 +47,7 @@ func MakeShardingtx(Puk, Signal dt.ShardSignal, signature []byte) (dt.ShardTrans
 		tx.Timestamp = time.Now().UnixNano()
 		tx.Nonce = 0
 		tx.ShardNo = 0
+		tx.Identifier = Signal.Identifier
 		//Do PoW
 		pow.PoW(&tx, difficulty)
 		//Wait for recieving messages

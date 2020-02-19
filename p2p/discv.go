@@ -40,7 +40,6 @@ func FindPeers(host PeerID) []PeerID {
 			break
 		}
 	}
-
 	return peers
 }
 
