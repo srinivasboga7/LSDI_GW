@@ -17,7 +17,7 @@ const (
 )
 
 type peerAddr struct {
-	ShardID     []byte
+	ShardID     uint32
 	networkAddr []byte
 	PublicKey   []byte
 }
@@ -30,7 +30,7 @@ type liveNodes struct {
 
 // stores all the gateway nodes in a shard
 type shardNodes struct {
-	ShardID []byte
+	ShardID uint32
 	Nodes   []peerAddr
 }
 
@@ -42,6 +42,11 @@ type gatewayNodes struct {
 type storageNodes struct {
 	mux   sync.RWMutex
 	Nodes []peerAddr
+}
+
+type shardSignal struct {
+	Identifier [32]byte
+	From       [65]byte
 }
 
 func find(list []peerAddr, element peerAddr) bool {
@@ -57,7 +62,7 @@ func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 	if GS {
 		nodes.GWNodes.mux.Lock()
 		for _, shard := range nodes.GWNodes.shards {
-			if bytes.Compare(peer.ShardID, shard.ShardID) == 0 {
+			if peer.ShardID == shard.ShardID {
 				shard.Nodes = append(shard.Nodes, peer)
 				if len(shard.Nodes) >= maxNodes {
 					go nodes.initiateSharding(shard)
@@ -118,14 +123,14 @@ func sendShardSignal(nodes shardNodes) {
 	conn.Close()
 }
 
-func (nodes *liveNodes) updateShard(ShardID []byte, IP []byte, PubKey []byte) {
+func (nodes *liveNodes) updateShard(ShardID uint32, IP []byte, PubKey []byte) {
 	nodes.GWNodes.mux.Lock()
 	var peer peerAddr
 	peer.networkAddr = IP
 	peer.PublicKey = PubKey
 	peer.ShardID = ShardID
 	for _, shard := range nodes.GWNodes.shards {
-		if bytes.Compare(ShardID, shard.ShardID) == 0 {
+		if ShardID == shard.ShardID {
 			shard.Nodes = append(shard.Nodes, peer)
 			break
 		}
@@ -137,7 +142,7 @@ func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
 	sendShardSignal(prevShard)
 	nodes.GWNodes.mux.Lock()
 	for i, shard := range nodes.GWNodes.shards {
-		if bytes.Compare(prevShard.ShardID, shard.ShardID) == 0 {
+		if prevShard.ShardID == shard.ShardID {
 			// deleting the old shard
 			nodes.GWNodes.shards[i] = nodes.GWNodes.shards[len(nodes.GWNodes.shards)-1]
 			nodes.GWNodes.shards = nodes.GWNodes.shards[:len(nodes.GWNodes.shards)-1]
@@ -146,8 +151,8 @@ func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
 	}
 	// creating two new shards
 	var nextShard1, nextShard2 shardNodes
-	nextShard1.ShardID = append(prevShard.ShardID, 0x00)
-	nextShard2.ShardID = append(prevShard.ShardID, 0x01)
+	nextShard1.ShardID = prevShard.ShardID * (10)
+	nextShard2.ShardID = prevShard.ShardID*(10) + 1
 	nodes.GWNodes.shards = append(nodes.GWNodes.shards, nextShard1, nextShard2)
 	nodes.GWNodes.mux.Unlock()
 }
@@ -161,7 +166,7 @@ func getRandomPeers(nodes *liveNodes, peer peerAddr, gs bool) []peerAddr {
 		nodes.SNNodes.mux.RLock()
 		var shard shardNodes
 		for _, shard = range nodes.GWNodes.shards {
-			if bytes.Compare(shard.ShardID, peer.ShardID) == 0 {
+			if shard.ShardID == peer.ShardID {
 				break
 			}
 		}
@@ -211,7 +216,10 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		return
 	}
 	if buffer[0] == 0x06 {
-		IP, PubKey, ShardID := buffer[1:5], buffer[5:70], buffer[70:l]
+		IP, PubKey, ShardIDBytes := buffer[1:5], buffer[5:70], buffer[70:l]
+		r := bytes.NewReader(ShardIDBytes)
+		var ShardID uint32
+		binary.Read(r, binary.LittleEndian, ShardID)
 		nodes.updateShard(ShardID, IP, PubKey)
 	} else {
 		IP, PubKey, GS := deserialize(buffer[:l])
@@ -220,14 +228,16 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 			x := rand.Intn(len(nodes.GWNodes.shards))
 			newPeer.ShardID = nodes.GWNodes.shards[x].ShardID
 		} else {
-			newPeer.ShardID = []byte{0x2}
+			newPeer.ShardID = 2
 		}
 		newPeer.PublicKey = PubKey
 		newPeer.networkAddr = IP
 		randomPeers := getRandomPeers(nodes, newPeer, GS)
 		var p [][]byte
 		for _, peer := range randomPeers {
-			p = append(p, append(append(peer.networkAddr, peer.PublicKey...), peer.ShardID...))
+			buf := new(bytes.Buffer)
+			binary.Write(buf, binary.LittleEndian, peer.ShardID)
+			p = append(p, append(append(peer.networkAddr, peer.PublicKey...), buf.Bytes()...))
 		}
 		b, _ := json.Marshal(p)
 		conn.Write(b)
@@ -247,7 +257,7 @@ func main() {
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
 	var firstShard shardNodes
-	firstShard.ShardID = []byte{0x00}
+	firstShard.ShardID = 1
 	nodes.GWNodes.shards = append(nodes.GWNodes.shards, firstShard)
 	listener, err := net.Listen("tcp", ":"+port)
 
