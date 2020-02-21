@@ -5,53 +5,57 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
+	sh "GO-DAG/sharding"
 	"GO-DAG/storage"
 	"log"
 )
 
 // New ...
-func New(hostID p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
+func New(hostID *p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
 
 	var srv p2p.Server
-	srv.HostID = hostID
+	srv.HostID.PublicKey = hostID.PublicKey
+	hostID = &srv.HostID
 	srv.BroadcastMsg = make(chan p2p.Msg)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
+	srv.ShardTransactions = make(chan dt.ShardTransaction)
+	srv.ShardingSignal = make(chan dt.ShardSignal)
 	go srv.Run()
-
 	go func() {
 		for {
 			p := <-srv.NewPeer
-			go handle(&p, srv.BroadcastMsg, dag, srv.RemovePeer)
+			go handle(&p, srv.BroadcastMsg, dag, srv.ShardingSignal, srv.ShardTransactions, srv.RemovePeer)
 		}
 	}()
 	return srv.BroadcastMsg
 }
 
 // NewBootstrap ...
-func NewBootstrap(hostID p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
+func NewBootstrap(hostID *p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
 	var srv p2p.Server
-	srv.HostID = hostID
+	srv.HostID.PublicKey = hostID.PublicKey
+	hostID = &srv.HostID
 	srv.BroadcastMsg = make(chan p2p.Msg)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
+	srv.ShardTransactions = make(chan dt.ShardTransaction)
+	srv.ShardingSignal = make(chan dt.ShardSignal)
 	go srv.Run()
-
 	go func() {
 		for {
 			p := <-srv.NewPeer
-			go handle(&p, srv.BroadcastMsg, dag, srv.RemovePeer)
+			go handle(&p, srv.BroadcastMsg, dag, srv.ShardingSignal, srv.ShardTransactions, srv.RemovePeer)
 		}
 	}()
 	return srv.BroadcastMsg
 }
 
-func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer) {
+func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransaction) {
 	// check for transactions or request for transactions
 	if msg.ID == 32 {
 		// transaction
-		tx, sign := serialize.DeserializeTransaction(msg.Payload, msg.LenPayload)
-		log.Println(Crypto.EncodeToHex(tx.LeftTip[:]))
+		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		if validTransaction(tx, sign) {
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 1 {
@@ -83,9 +87,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer) {
 		respMsg.LenPayload = uint32(len(respMsg.Payload))
 		p.Send(respMsg)
 	} else if msg.ID == 33 {
-		// transaction recieved after request
-		tx, sign := serialize.DeserializeTransaction(msg.Payload, msg.LenPayload)
-		log.Println(Crypto.EncodeToHex(tx.LeftTip[:]))
+		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		if validTransaction(tx, sign) {
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 2 {
@@ -103,16 +105,26 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer) {
 				}
 			}
 		}
-	} else if msg.ID == 35 {
-		// sharding signal
-
-	} else if msg.ID == 36 {
-		// sharding transaction
+	} else if msg.ID == 35 { //Shard signal
+		signal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
+		select {
+		case ShardSignalch <- signal:
+			send <- msg
+		default:
+			log.Println("Duplicate sharding signal")
+		}
+	} else if msg.ID == 36 { //Sharding tx from other nodes
+		tx, sign := serialize.Decode36(msg.Payload, msg.LenPayload)
+		if sh.VerifyShardTransaction(tx, sign, 4) {
+			Shardtxch <- tx
+			log.Println("Recieved sharding tx from", msg.Sender)
+			send <- msg
+		}
 	}
 }
 
 // read the messages and handle
-func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, errChan chan p2p.Peer) {
+func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransaction, errChan chan p2p.Peer) {
 	for {
 		msg, err := p.GetMsg()
 		if err != nil {
@@ -120,7 +132,7 @@ func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, errChan chan p2p.Peer) 
 			log.Println(err)
 			break
 		}
-		handleMsg(msg, send, dag, p)
+		go handleMsg(msg, send, dag, p, ShardSignalch, Shardtxch)
 	}
 }
 
@@ -132,11 +144,9 @@ func getAllKeys(dag *dt.DAG) []string {
 
 	var hashes []string
 	dag.Mux.Lock()
-
 	for k := range dag.Graph {
 		hashes = append(hashes, k)
 	}
-
 	dag.Mux.Unlock()
 	return hashes
 }

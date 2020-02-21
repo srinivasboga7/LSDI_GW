@@ -1,13 +1,19 @@
 package p2p
 
 import (
-	"bytes"
+	dt "GO-DAG/DataTypes"
+	"GO-DAG/serialize"
+	sh "GO-DAG/sharding"
 	"errors"
 	"log"
 	"net"
 	"strconv"
 	"sync"
 	"time"
+)
+
+var (
+	haltServer sync.Mutex
 )
 
 type handshakeMsg struct {
@@ -28,14 +34,16 @@ func validateHandshakeMsg(reply []byte) (PeerID, error) {
 
 // Server ...
 type Server struct {
-	peers        []Peer
-	maxPeers     uint32
-	HostID       PeerID
-	ec           chan error
-	mux          sync.Mutex
-	NewPeer      chan Peer
-	BroadcastMsg chan Msg
-	RemovePeer   chan Peer
+	peers             []Peer
+	maxPeers          uint32
+	HostID            PeerID
+	ec                chan error
+	mux               sync.Mutex
+	NewPeer           chan Peer
+	BroadcastMsg      chan Msg
+	RemovePeer        chan Peer
+	ShardingSignal    chan dt.ShardSignal
+	ShardTransactions chan dt.ShardTransaction
 	// ...
 }
 
@@ -129,14 +137,14 @@ func (srv *Server) removePeer(peer Peer) {
 	// terminate the corresponding go routine and cleanup
 	srv.mux.Lock()
 	for i, p := range srv.peers {
-		if bytes.Compare(p.ID.IP, peer.ID.PublicKey) == 0 {
+		if p.ID.Equals(peer.ID) {
 			srv.peers[i] = srv.peers[len(srv.peers)-1]
 			srv.peers = srv.peers[:len(srv.peers)-1]
 			break
 		}
 	}
 	srv.mux.Unlock()
-
+	close(peer.closed)
 	return
 }
 
@@ -172,6 +180,20 @@ func (srv *Server) initiateConnection(pID PeerID) (net.Conn, error) {
 	return conn, nil
 }
 
+func (srv *Server) discOldPeers() {
+	srv.mux.Lock()
+	for _, p := range srv.peers {
+		if p.ID.ShardID != srv.HostID.ShardID {
+			var msg Msg
+			msg.ID = 3
+			msg.LenPayload = 0
+			p.Send(msg)
+			close(p.closed)
+		}
+	}
+	srv.mux.Unlock()
+}
+
 // Run starts the server
 func (srv *Server) Run() {
 
@@ -196,7 +218,75 @@ func (srv *Server) Run() {
 		}
 	}
 
+	var tempPeers []PeerID
+	go func() {
+		for {
+			signal := <-srv.ShardingSignal
+			haltServer.Lock()
+			var sign []byte
+			Shardingtx, err := sh.MakeShardingtx(srv.HostID.PublicKey, signal, sign)
+			srv.HostID.ShardID = Shardingtx.ShardNo
+			if err != nil {
+				log.Println(err)
+			}
+			var msg Msg
+			msg.ID = 36
+			msg.Payload = serialize.Encode(Shardingtx)
+			msg.LenPayload = uint32(len(msg.Payload))
+			Send(msg, srv.peers)
+			// sign the transaction
+
+			// remove tempPeers with different shardID
+
+			var shPeers []PeerID
+			for _, p := range tempPeers {
+				if p.ShardID == srv.HostID.ShardID {
+					shPeers = append(shPeers, p)
+				}
+			}
+
+			tempPeers = shPeers
+
+			for {
+				// check the number of peers with same shardNo
+				if len(tempPeers) > 3 {
+					break
+				}
+				tx := <-srv.ShardTransactions
+				if tx.ShardNo == srv.HostID.ShardID {
+					var p PeerID
+					copy(tx.IP[:], p.IP)
+					copy(tx.From[:], p.PublicKey)
+					p.ShardID = tx.ShardNo
+					tempPeers = append(tempPeers, p)
+				}
+			}
+			// disconect with the other peers
+			// connect with these peers with same shardNo
+			// check if the routing reaches storage node or some other mechanism
+
+			for _, pID := range tempPeers {
+				// check first if it's already present in srv.Peers
+				conn, err := srv.initiateConnection(pID)
+				if err != nil {
+					log.Println(err)
+				} else {
+					p := newPeer(conn, pID)
+					srv.AddPeer(p)
+					srv.NewPeer <- *p
+				}
+			}
+			// send the discovery server appropriate information
+			updateShardID(srv.HostID)
+			srv.discOldPeers()
+			haltServer.Unlock()
+			var emptySlice []PeerID
+			tempPeers = emptySlice
+		}
+	}()
+
 	for {
+		haltServer.Lock()
 		select {
 		// listen
 		case msg := <-srv.BroadcastMsg:
@@ -205,7 +295,22 @@ func (srv *Server) Run() {
 			log.Fatal("error")
 		case p := <-srv.RemovePeer:
 			srv.removePeer(p)
+		case tx := <-srv.ShardTransactions:
+			var p PeerID
+			copy(tx.IP[:], p.IP)
+			copy(tx.From[:], p.PublicKey)
+			p.ShardID = tx.ShardNo
+			dup := false
+			for _, peer := range tempPeers {
+				if peer.Equals(p) {
+					dup = true
+				}
+			}
+			if !dup {
+				tempPeers = append(tempPeers, p)
+			}
 		}
+		haltServer.Unlock()
 	}
 }
 

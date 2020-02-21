@@ -75,9 +75,11 @@ func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 		var s PeerID
 		s.IP = peer[:4]
 		s.PublicKey = peer[4:69]
-		s.ShardID = peer[69:]
+		r := bytes.NewReader(peer[69:])
+		binary.Read(r, binary.LittleEndian, &s.ShardID)
 		p = append(p, s)
 	}
+	localID.ShardID = p[0].ShardID
 	return p, nil
 }
 
@@ -85,7 +87,9 @@ func constructUpdateShardID(p PeerID) []byte {
 	b := []byte{0x06}
 	b = append(b, p.IP...)
 	b = append(b, p.PublicKey...)
-	b = append(b, p.ShardID...)
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, p.ShardID)
+	b = append(b, buf.Bytes()...)
 	return b
 }
 

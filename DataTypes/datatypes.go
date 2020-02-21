@@ -17,16 +17,18 @@ type Transaction struct {
 
 // ShardSignal ds is recieved from discovery to initiate sharding
 type ShardSignal struct {
-	Data string
-	From [65]byte
+	Identifier [32]byte
+	From       [65]byte
 }
 
 // ShardTransaction transaction to start sharding
 type ShardTransaction struct {
-	Timestamp int64
-	From      [65]byte
-	ShardNo   int
-	Nonce     uint32
+	Identifier [32]byte
+	Timestamp  int64
+	From       [65]byte
+	IP         [4]byte
+	ShardNo    uint32
+	Nonce      uint32
 }
 
 // Peers maintains the list of all peers connected to the node

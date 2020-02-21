@@ -21,7 +21,7 @@ func DecodeToBytes(data string) []byte {
 }
 
 //Encode serializes transaction to byte slice
-func Encode(t dt.Transaction) []byte {
+func Encode(t interface{}) []byte {
 	// iterating over a struct is painful in golang
 	var b []byte
 	v := reflect.ValueOf(&t).Elem()
@@ -46,11 +46,35 @@ func EncodeToBytes(x interface{}) []byte {
 	}
 }
 
-//DeserializeTransaction Converts back byte slice to transaction
-func DeserializeTransaction(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
+//Decode32 Converts back byte slice to transaction
+func Decode32(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
 	signature := payload[lenPayload-72:]
 	r := bytes.NewReader(payload[:lenPayload-72])
 	var tx dt.Transaction
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
+		log.Println(err)
+	}
+	return tx, signature
+}
+
+//Decode35 Converts back byte slice to transaction
+func Decode35(payload []byte, lenPayload uint32) (dt.ShardSignal, []byte) {
+	signature := payload[lenPayload-72:]
+	r := bytes.NewReader(payload[:lenPayload-72])
+	var tx dt.ShardSignal
+	err := binary.Read(r, binary.LittleEndian, &tx)
+	if err != nil {
+		log.Println(err)
+	}
+	return tx, signature
+}
+
+//Decode36 Converts back byte slice to transaction
+func Decode36(payload []byte, lenPayload uint32) (dt.ShardTransaction, []byte) {
+	signature := payload[lenPayload-72:]
+	r := bytes.NewReader(payload[:lenPayload-72])
+	var tx dt.ShardTransaction
 	err := binary.Read(r, binary.LittleEndian, &tx)
 	if err != nil {
 		log.Println(err)

@@ -26,7 +26,7 @@ const (
 type PeerID struct {
 	IP        []byte
 	PublicKey []byte
-	ShardID   []byte
+	ShardID   uint32
 }
 
 // Equals compares PeerIDs
@@ -124,7 +124,8 @@ func (p *Peer) handleMsg(msg Msg) error {
 		SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
-
+		p.rw.Close()
+		return errors.New("peer requested to disconnect")
 	case msg.ID > 31:
 		select {
 		case p.in <- msg:
