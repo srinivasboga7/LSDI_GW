@@ -1,13 +1,16 @@
 package p2p
 
 import (
+	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/serialize"
 	sh "GO-DAG/sharding"
+	"crypto/ecdsa"
 	"errors"
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -44,6 +47,7 @@ type Server struct {
 	RemovePeer        chan Peer
 	ShardingSignal    chan dt.ShardSignal
 	ShardTransactions chan dt.ShardTransaction
+	PrivateKey        *ecdsa.PrivateKey
 	// ...
 }
 
@@ -144,7 +148,6 @@ func (srv *Server) removePeer(peer Peer) {
 		}
 	}
 	srv.mux.Unlock()
-	close(peer.closed)
 	return
 }
 
@@ -156,7 +159,17 @@ func (srv *Server) listenForConns() {
 			log.Println(err)
 			continue
 		}
-		go srv.setupConn(conn)
+		ip := conn.RemoteAddr().String()
+		ip = ip[:strings.IndexByte(ip, ':')]
+		if ip == discvServer[:strings.IndexByte(discvServer, ':')] {
+			msg, _ := ReadMsg(conn)
+			shSignal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
+			srv.ShardingSignal <- shSignal
+			conn.Close()
+			srv.BroadcastMsg <- msg
+		} else {
+			go srv.setupConn(conn)
+		}
 	}
 }
 
@@ -188,7 +201,7 @@ func (srv *Server) discOldPeers() {
 			msg.ID = 3
 			msg.LenPayload = 0
 			p.Send(msg)
-			close(p.closed)
+			srv.removePeer(p)
 		}
 	}
 	srv.mux.Unlock()
@@ -222,50 +235,48 @@ func (srv *Server) Run() {
 	go func() {
 		for {
 			signal := <-srv.ShardingSignal
-			haltServer.Lock()
+			log.Println("sharding signal received")
 			var sign []byte
-			Shardingtx, err := sh.MakeShardingtx(srv.HostID.PublicKey, signal, sign)
-			srv.HostID.ShardID = Shardingtx.ShardNo
+			Shardingtx, err := sh.MakeShardingtx(srv.HostID.PublicKey, signal)
+			srv.HostID.ShardID = srv.HostID.ShardID*10 + Shardingtx.ShardNo
+			Shardingtx.ShardNo = srv.HostID.ShardID
+			copy(Shardingtx.IP[:], srv.HostID.IP)
 			if err != nil {
 				log.Println(err)
+				continue
 			}
 			var msg Msg
 			msg.ID = 36
-			msg.Payload = serialize.Encode(Shardingtx)
+			msg.Payload = serialize.Encode36(Shardingtx)
+			h := Crypto.Hash(msg.Payload)
+			sign = Crypto.Sign(h[:], srv.PrivateKey)
+			msg.Payload = append(msg.Payload, sign...)
 			msg.LenPayload = uint32(len(msg.Payload))
-			Send(msg, srv.peers)
-			// sign the transaction
-
-			// remove tempPeers with different shardID
+			srv.BroadcastMsg <- msg
+			time.Sleep(time.Second)
 
 			var shPeers []PeerID
-			for _, p := range tempPeers {
-				if p.ShardID == srv.HostID.ShardID {
-					shPeers = append(shPeers, p)
-				}
-			}
-
-			tempPeers = shPeers
+			l := 0
 
 			for {
 				// check the number of peers with same shardNo
-				if len(tempPeers) > 3 {
+				for _, p := range tempPeers {
+					if p.ShardID == srv.HostID.ShardID {
+						shPeers = append(shPeers, p)
+						l++
+					}
+				}
+				if l > 1 {
 					break
 				}
-				tx := <-srv.ShardTransactions
-				if tx.ShardNo == srv.HostID.ShardID {
-					var p PeerID
-					copy(tx.IP[:], p.IP)
-					copy(tx.From[:], p.PublicKey)
-					p.ShardID = tx.ShardNo
-					tempPeers = append(tempPeers, p)
-				}
+				time.Sleep(time.Second)
 			}
 			// disconect with the other peers
 			// connect with these peers with same shardNo
 			// check if the routing reaches storage node or some other mechanism
+			time.Sleep(time.Second)
 
-			for _, pID := range tempPeers {
+			for _, pID := range shPeers {
 				// check first if it's already present in srv.Peers
 				conn, err := srv.initiateConnection(pID)
 				if err != nil {
@@ -279,14 +290,13 @@ func (srv *Server) Run() {
 			// send the discovery server appropriate information
 			updateShardID(srv.HostID)
 			srv.discOldPeers()
-			haltServer.Unlock()
+			log.Println("sharding complete")
 			var emptySlice []PeerID
 			tempPeers = emptySlice
 		}
 	}()
 
 	for {
-		haltServer.Lock()
 		select {
 		// listen
 		case msg := <-srv.BroadcastMsg:
@@ -297,10 +307,16 @@ func (srv *Server) Run() {
 			srv.removePeer(p)
 		case tx := <-srv.ShardTransactions:
 			var p PeerID
-			copy(tx.IP[:], p.IP)
-			copy(tx.From[:], p.PublicKey)
+			p.IP = make([]byte, 4)
+			p.PublicKey = make([]byte, 65)
+			copy(p.IP, tx.IP[:])
+			copy(p.PublicKey, tx.From[:])
 			p.ShardID = tx.ShardNo
 			dup := false
+
+			if p.Equals(srv.HostID) {
+				dup = true
+			}
 			for _, peer := range tempPeers {
 				if peer.Equals(p) {
 					dup = true
@@ -308,21 +324,21 @@ func (srv *Server) Run() {
 			}
 			if !dup {
 				tempPeers = append(tempPeers, p)
+				var msg Msg
+				msg.ID = 36
+				msg.Payload = serialize.Encode36(tx)
+				msg.LenPayload = uint32(len(msg.Payload))
+				Send(msg, srv.peers)
 			}
 		}
-		haltServer.Unlock()
 	}
 }
 
 // Send ...
 func Send(msg Msg, peers []Peer) {
 	for _, p := range peers {
-		var err error
 		if !p.ID.Equals(msg.Sender) {
-			err = SendMsg(p.rw, msg)
-		}
-		if err != nil {
-			log.Println("problem sending to peer")
+			SendMsg(p.rw, msg)
 		}
 	}
 }

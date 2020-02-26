@@ -5,42 +5,21 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
-	sh "GO-DAG/sharding"
 	"GO-DAG/storage"
 	"log"
 )
 
 // New ...
-func New(hostID *p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
+func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Msg {
 
 	var srv p2p.Server
-	srv.HostID.PublicKey = hostID.PublicKey
-	hostID = &srv.HostID
+	srv.HostID = *hostID
 	srv.BroadcastMsg = make(chan p2p.Msg)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
 	srv.ShardTransactions = make(chan dt.ShardTransaction)
 	srv.ShardingSignal = make(chan dt.ShardSignal)
-	go srv.Run()
-	go func() {
-		for {
-			p := <-srv.NewPeer
-			go handle(&p, srv.BroadcastMsg, dag, srv.ShardingSignal, srv.ShardTransactions, srv.RemovePeer)
-		}
-	}()
-	return srv.BroadcastMsg
-}
-
-// NewBootstrap ...
-func NewBootstrap(hostID *p2p.PeerID, dag *dt.DAG) chan p2p.Msg {
-	var srv p2p.Server
-	srv.HostID.PublicKey = hostID.PublicKey
-	hostID = &srv.HostID
-	srv.BroadcastMsg = make(chan p2p.Msg)
-	srv.NewPeer = make(chan p2p.Peer)
-	srv.RemovePeer = make(chan p2p.Peer)
-	srv.ShardTransactions = make(chan dt.ShardTransaction)
-	srv.ShardingSignal = make(chan dt.ShardSignal)
+	srv.PrivateKey = PrivKey
 	go srv.Run()
 	go func() {
 		for {
@@ -56,6 +35,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	if msg.ID == 32 {
 		// transaction
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
+		// log.Println(hex.EncodeToString(tx.LeftTip[:]))
 		if validTransaction(tx, sign) {
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 1 {
@@ -83,7 +63,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		sign := v.Signature
 		var respMsg p2p.Msg
 		respMsg.ID = 33
-		respMsg.Payload = append(serialize.Encode(tx), sign...)
+		respMsg.Payload = append(serialize.Encode32(tx), sign...)
 		respMsg.LenPayload = uint32(len(respMsg.Payload))
 		p.Send(respMsg)
 	} else if msg.ID == 33 {
@@ -111,15 +91,14 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		case ShardSignalch <- signal:
 			send <- msg
 		default:
-			log.Println("Duplicate sharding signal")
 		}
 	} else if msg.ID == 36 { //Sharding tx from other nodes
-		tx, sign := serialize.Decode36(msg.Payload, msg.LenPayload)
-		if sh.VerifyShardTransaction(tx, sign, 4) {
-			Shardtxch <- tx
-			log.Println("Recieved sharding tx from", msg.Sender)
-			send <- msg
-		}
+		tx, _ := serialize.Decode36(msg.Payload, msg.LenPayload)
+		// if sh.VerifyShardTransaction(tx, sign, 4) {
+		// 	Shardtxch <- tx
+		// 	send <- msg
+		// }
+		Shardtxch <- tx
 	}
 }
 

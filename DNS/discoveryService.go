@@ -1,6 +1,7 @@
 package main
 
 import (
+	"GO-DAG/Crypto"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -10,10 +11,16 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
+)
+
+// used to sign the messages
+var (
+	PrivateKey Crypto.PrivateKey
 )
 
 const (
-	maxNodes = 10
+	maxNodes = 5
 )
 
 type peerAddr struct {
@@ -61,14 +68,17 @@ func find(list []peerAddr, element peerAddr) bool {
 func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 	if GS {
 		nodes.GWNodes.mux.Lock()
-		for _, shard := range nodes.GWNodes.shards {
+		var shard shardNodes
+		var i int
+		for i, shard = range nodes.GWNodes.shards {
 			if peer.ShardID == shard.ShardID {
-				shard.Nodes = append(shard.Nodes, peer)
-				if len(shard.Nodes) >= maxNodes {
-					go nodes.initiateSharding(shard)
-				}
 				break
 			}
+		}
+		shard.Nodes = append(shard.Nodes, peer)
+		nodes.GWNodes.shards[i] = shard
+		if len(shard.Nodes) >= maxNodes {
+			go nodes.initiateSharding(shard)
 		}
 		nodes.GWNodes.mux.Unlock()
 	} else {
@@ -83,8 +93,12 @@ func (nodes *liveNodes) remove(GWNodes []peerAddr, SNNodes []peerAddr) {
 }
 
 func constructShardSignal() []byte {
-	shardSignal := []byte{0x35}
-	shardSignal = append(shardSignal, []byte{0x00}...)
+	var shardSignal []byte
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(time.Now().UnixNano()))
+	h := Crypto.Hash(b)
+	shardSignal = append(shardSignal, h[:]...)
+	shardSignal = append(shardSignal, Crypto.SerializePublicKey(&PrivateKey.PublicKey)...)
 	return shardSignal
 }
 
@@ -102,16 +116,8 @@ func checkPong(b []byte) bool {
 }
 
 func parseAddr(b []byte) string {
-	var IP struct {
-		b1 uint8
-		b2 uint8
-		b3 uint8
-		b4 uint8
-	}
-	buf := bytes.NewReader(b)
-	binary.Read(buf, binary.LittleEndian, &IP)
-	addr := strconv.Itoa(int(IP.b1)) + "." + strconv.Itoa(int(IP.b2)) + "."
-	addr += strconv.Itoa(int(IP.b3)) + "." + strconv.Itoa(int(IP.b4)) + ":8080"
+	addr := strconv.Itoa(int(b[0])) + "." + strconv.Itoa(int(b[1])) + "."
+	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3])) + ":8060"
 	return addr
 }
 
@@ -119,6 +125,17 @@ func sendShardSignal(nodes shardNodes) {
 	randNode := nodes.Nodes[rand.Intn(len(nodes.Nodes))]
 	conn, _ := net.Dial("tcp", parseAddr(randNode.networkAddr))
 	b := constructShardSignal()
+	hash := Crypto.Hash(b)
+	sign := Crypto.Sign(hash[:], PrivateKey)
+	b = append(b, sign...)
+	l := new(bytes.Buffer)
+	binary.Write(l, binary.LittleEndian, uint32(len(b)))
+	b = append(l.Bytes(), b...)
+	h := new(bytes.Buffer)
+	var id uint32
+	id = 35
+	binary.Write(h, binary.LittleEndian, id)
+	b = append(h.Bytes(), b...)
 	conn.Write(b)
 	conn.Close()
 }
@@ -139,6 +156,7 @@ func (nodes *liveNodes) updateShard(ShardID uint32, IP []byte, PubKey []byte) {
 }
 
 func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
+	time.Sleep(15 * time.Second)
 	sendShardSignal(prevShard)
 	nodes.GWNodes.mux.Lock()
 	for i, shard := range nodes.GWNodes.shards {
@@ -170,16 +188,20 @@ func getRandomPeers(nodes *liveNodes, peer peerAddr, gs bool) []peerAddr {
 				break
 			}
 		}
-		if len(shard.Nodes) > 0 {
-			perm1 := rand.Perm(len(shard.Nodes))
-			perm2 := rand.Perm(len(nodes.SNNodes.Nodes))
+		perm1 := rand.Perm(len(shard.Nodes))
+		perm2 := rand.Perm(len(nodes.SNNodes.Nodes))
+		if len(shard.Nodes) > 1 {
 			peers = append(peers, shard.Nodes[perm1[0]])
-
 			if rand.Intn(2) == 0 {
 				peers = append(peers, shard.Nodes[perm1[1]])
 			} else {
 				peers = append(peers, nodes.SNNodes.Nodes[perm2[0]])
 			}
+		} else if len(shard.Nodes) == 1 {
+			peers = append(peers, shard.Nodes[perm1[0]])
+			peers = append(peers, nodes.SNNodes.Nodes[perm2[0]])
+		} else {
+			peers = append(peers, nodes.SNNodes.Nodes[perm2[0]])
 		}
 		nodes.SNNodes.mux.RUnlock()
 		nodes.GWNodes.mux.RUnlock()
@@ -228,7 +250,7 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 			x := rand.Intn(len(nodes.GWNodes.shards))
 			newPeer.ShardID = nodes.GWNodes.shards[x].ShardID
 		} else {
-			newPeer.ShardID = 2
+			newPeer.ShardID = 1
 		}
 		newPeer.PublicKey = PubKey
 		newPeer.networkAddr = IP
@@ -253,6 +275,7 @@ func checkDB(nodes *liveNodes) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	port := os.Args[1]
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
@@ -260,6 +283,12 @@ func main() {
 	firstShard.ShardID = 1
 	nodes.GWNodes.shards = append(nodes.GWNodes.shards, firstShard)
 	listener, err := net.Listen("tcp", ":"+port)
+
+	if Crypto.CheckForKeys() {
+		PrivateKey = Crypto.LoadKeys()
+	} else {
+		PrivateKey = Crypto.GenerateKeys()
+	}
 
 	if err != nil {
 		log.Fatal(err)

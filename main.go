@@ -9,17 +9,8 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"math/rand"
-	"os"
 	"time"
 )
-
-func Getkeys(m map[*p2p.PeerID]struct{}) []p2p.PeerID {
-	keys := make([]p2p.PeerID, 0, len(m))
-	for k := range m {
-		keys = append(keys, *k)
-	}
-	return keys
-}
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -34,21 +25,16 @@ func main() {
 	ID.PublicKey = Crypto.SerializePublicKey(&PrivateKey.PublicKey)
 	var dag dt.DAG
 	v := constructGenisis()
-	genisisHash := Crypto.Hash(serialize.Encode(v.Tx))
+	genisisHash := Crypto.Hash(serialize.Encode32(v.Tx))
 	dag.Graph = make(map[string]dt.Vertex)
 	dag.Graph[Crypto.EncodeToHex(genisisHash[:])] = v
 	var ch chan p2p.Msg
-	if os.Args[1] == "b" {
-		ch = node.NewBootstrap(&ID, &dag)
-	} else {
-		ch = node.New(&ID, &dag)
-	}
+	ch = node.New(&ID, &dag, PrivateKey)
 	var cli client.Client
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
-	go cli.SimulateClient()
-	// ShardRequesters p2p.PeerID[]
+	cli.SimulateClient()
 }
 
 func constructGenisis() dt.Vertex {

@@ -29,7 +29,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	// broadcast transaction
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
-	b := serialize.Encode(tx)
+	b := serialize.Encode32(tx)
 	var msg p2p.Msg
 	msg.ID = 32
 	h := Crypto.Hash(b)
@@ -44,7 +44,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
 	for {
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 		hash := Crypto.Hash([]byte("Hello,World!"))
 		cli.IssueTransaction(hash[:])
 	}

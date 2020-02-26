@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+var (
+	discvServer string
+)
+
 // FindPeers fetches some peers by querying the discovery service
 // The Bootstrap disocvery nodes are provided in a file
 func FindPeers(host *PeerID) []PeerID {
@@ -37,6 +41,7 @@ func FindPeers(host *PeerID) []PeerID {
 		if err != nil {
 			log.Println("Failed to query discv node", addr)
 		} else {
+			discvServer = addr
 			break
 		}
 	}
@@ -79,7 +84,12 @@ func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 		binary.Read(r, binary.LittleEndian, &s.ShardID)
 		p = append(p, s)
 	}
-	localID.ShardID = p[0].ShardID
+	if len(p) > 0 {
+		localID.ShardID = p[0].ShardID
+	} else {
+		localID.ShardID = 1
+	}
+	log.Println("Number of peers", len(p))
 	return p, nil
 }
 
@@ -94,22 +104,9 @@ func constructUpdateShardID(p PeerID) []byte {
 }
 
 func updateShardID(host PeerID) {
-	f, err := os.Open("bootstrapNodes.txt")
-	if err != nil {
-		log.Fatal("Problem opening the file containing bootstrap nodes")
-	}
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Fatal("Incosistent file containing bootstrap nodes")
-	}
-
-	// bootstrapNodes is the list of some of the discv nodes
-	bootstrapNodes := strings.Split(string(b), "\n")
-	for _, node := range bootstrapNodes {
-		conn, _ := net.Dial("tcp", node)
-		conn.Write(constructUpdateShardID(host))
-		conn.Close()
-	}
+	conn, _ := net.Dial("tcp", discvServer)
+	conn.Write(constructUpdateShardID(host))
+	conn.Close()
 }
 
 func serializeIPAddr(IP string) []byte {

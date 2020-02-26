@@ -12,7 +12,7 @@ func PoW(item interface{}, difficulty int) {
 	switch tx := item.(type) {
 	case *dt.Transaction:
 		for {
-			s := serialize.Encode(tx)
+			s := serialize.Encode32(*tx)
 			hash := Crypto.Hash(s)
 			h := Crypto.EncodeToHex(hash[:])
 			if h[:difficulty] == strings.Repeat("0", difficulty) {
@@ -22,7 +22,7 @@ func PoW(item interface{}, difficulty int) {
 		}
 	case *dt.ShardTransaction:
 		for {
-			s := serialize.Encode(tx)
+			s := serialize.Encode36(*tx)
 			hash := Crypto.Hash(s)
 			h := Crypto.EncodeToHex(hash[:])
 			if h[:difficulty] == strings.Repeat("0", difficulty) {
@@ -36,7 +36,13 @@ func PoW(item interface{}, difficulty int) {
 
 //VerifyPoW verifies if the nonce field of tx matches the difficulty
 func VerifyPoW(tx interface{}, difficulty int) bool {
-	s := serialize.Encode(tx)
+	var s []byte
+	switch t := tx.(type) {
+	case dt.Transaction:
+		s = serialize.Encode32(t)
+	case dt.ShardTransaction:
+		s = serialize.Encode36(t)
+	}
 	hash := Crypto.Hash(s)
 	h := Crypto.EncodeToHex(hash[:])
 	if h[:difficulty] == strings.Repeat("0", difficulty) {

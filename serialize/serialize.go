@@ -20,9 +20,31 @@ func DecodeToBytes(data string) []byte {
 	return b
 }
 
-//Encode serializes transaction to byte slice
-func Encode(t interface{}) []byte {
+//Encode32 serializes transaction to byte slice
+func Encode32(t dt.Transaction) []byte {
 	// iterating over a struct is painful in golang
+	var b []byte
+	v := reflect.ValueOf(&t).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		value := v.Field(i)
+		b = append(b, EncodeToBytes(value.Interface())...)
+	}
+	return b
+}
+
+// Encode35 serializes shardsignal
+func Encode35(t dt.ShardSignal) []byte {
+	var b []byte
+	v := reflect.ValueOf(&t).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		value := v.Field(i)
+		b = append(b, EncodeToBytes(value.Interface())...)
+	}
+	return b
+}
+
+// Encode36 serializes shardtransaction
+func Encode36(t dt.ShardTransaction) []byte {
 	var b []byte
 	v := reflect.ValueOf(&t).Elem()
 	for i := 0; i < v.NumField(); i++ {
