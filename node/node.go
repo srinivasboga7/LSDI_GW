@@ -5,6 +5,7 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
+	sh "GO-DAG/sharding"
 	"GO-DAG/storage"
 	"log"
 )
@@ -58,14 +59,16 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	} else if msg.ID == 34 {
 		// request for transaction
 		hash := msg.Payload
-		v := dag.Graph[Crypto.EncodeToHex(hash)]
-		tx := v.Tx
-		sign := v.Signature
-		var respMsg p2p.Msg
-		respMsg.ID = 33
-		respMsg.Payload = append(serialize.Encode32(tx), sign...)
-		respMsg.LenPayload = uint32(len(respMsg.Payload))
-		p.Send(respMsg)
+		v, ok := dag.Graph[Crypto.EncodeToHex(hash)]
+		if ok {
+			tx := v.Tx
+			sign := v.Signature
+			var respMsg p2p.Msg
+			respMsg.ID = 33
+			respMsg.Payload = append(serialize.Encode32(tx), sign...)
+			respMsg.LenPayload = uint32(len(respMsg.Payload))
+			p.Send(respMsg)
+		}
 	} else if msg.ID == 33 {
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		if validTransaction(tx, sign) {
@@ -93,12 +96,10 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		default:
 		}
 	} else if msg.ID == 36 { //Sharding tx from other nodes
-		tx, _ := serialize.Decode36(msg.Payload, msg.LenPayload)
-		// if sh.VerifyShardTransaction(tx, sign, 4) {
-		// 	Shardtxch <- tx
-		// 	send <- msg
-		// }
-		Shardtxch <- tx
+		tx, sign := serialize.Decode36(msg.Payload, msg.LenPayload)
+		if sh.VerifyShardTransaction(tx, sign, 4) {
+			Shardtxch <- tx
+		}
 	}
 }
 

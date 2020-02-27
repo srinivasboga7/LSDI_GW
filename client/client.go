@@ -3,6 +3,7 @@ package client
 import (
 	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
+	pow "GO-DAG/Pow"
 	"GO-DAG/consensus"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
@@ -29,6 +30,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	// broadcast transaction
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
+	pow.PoW(&tx, 4)
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
 	msg.ID = 32

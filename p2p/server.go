@@ -161,6 +161,7 @@ func (srv *Server) listenForConns() {
 		}
 		ip := conn.RemoteAddr().String()
 		ip = ip[:strings.IndexByte(ip, ':')]
+		// sharding signal from discovery service
 		if ip == discvServer[:strings.IndexByte(discvServer, ':')] {
 			msg, _ := ReadMsg(conn)
 			shSignal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
@@ -291,6 +292,7 @@ func (srv *Server) Run() {
 			updateShardID(srv.HostID)
 			srv.discOldPeers()
 			log.Println("sharding complete")
+			time.Sleep(10 * time.Second)
 			var emptySlice []PeerID
 			tempPeers = emptySlice
 		}
@@ -323,6 +325,7 @@ func (srv *Server) Run() {
 				}
 			}
 			if !dup {
+				log.Println("sharding transaction received", tx.ShardNo)
 				tempPeers = append(tempPeers, p)
 				var msg Msg
 				msg.ID = 36

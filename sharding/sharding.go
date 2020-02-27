@@ -1,17 +1,24 @@
 package sharding
 
 import (
+	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
 	pow "GO-DAG/Pow"
+	"GO-DAG/serialize"
+	"log"
 	"time"
 )
 
 //VerifyDiscovery verifies shard signal from discovery
-func VerifyDiscovery(msg dt.ShardSignal, signature []byte) bool {
-	//Deserialise the message
+func VerifyDiscovery(tx dt.ShardSignal, signature []byte) bool {
 	//Verify signature using PuK
 	//Return valid or not
-	return true
+	s := serialize.Encode35(tx)
+	SerialKey := tx.From
+	PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
+	h := Crypto.Hash(s)
+	sigVerify := Crypto.Verify(signature, PublicKey, h[:])
+	return sigVerify
 }
 
 //VerifyShardTransaction verifies shard transaction
@@ -20,32 +27,27 @@ func VerifyShardTransaction(tx dt.ShardTransaction, signature []byte, difficulty
 	//Verify signature
 	//Verify Pow
 	//Verify Shard number
-	// s := serialize.Encode(tx)
-	// SerialKey := tx.From
-	// PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
-	// h := Crypto.Hash(s)
-	// sigVerify := Crypto.Verify(signature, PublicKey, h[:])
-	// if sigVerify == false {
-	// 	log.Println("INVALID SIGNATURE")
-	// }
-	return true && pow.VerifyPoW(tx, difficulty)
+	s := serialize.Encode36(tx)
+	SerialKey := tx.From
+	PublicKey := Crypto.DeserializePublicKey(SerialKey[:])
+	h := Crypto.Hash(s)
+	sigVerify := Crypto.Verify(signature, PublicKey, h[:])
+	if sigVerify == false {
+		log.Println("INVALID SIGNATURE")
+	}
+	// also verify the shardNo with the nonce
+	return sigVerify && pow.VerifyPoW(tx, difficulty)
 }
 
 //MakeShardingtx Call on recieving sharding signal from discovery after forwarding it
 func MakeShardingtx(Puk []byte, Signal dt.ShardSignal) (dt.ShardTransaction, error) {
 	difficulty := 4
 	var tx dt.ShardTransaction
-	//Create transaction
 	copy(tx.From[:], Puk)
 	tx.Timestamp = time.Now().UnixNano()
 	tx.Nonce = 0
 	tx.ShardNo = 0
 	tx.Identifier = Signal.Identifier
-	//Do PoW
 	pow.PoW(&tx, difficulty)
-	//Wait for recieving messages
-	//	//Verify each recvd pow and add to buffer
-	//	//Wait till threshold or timeout
-	//Update peers
 	return tx, nil
 }
