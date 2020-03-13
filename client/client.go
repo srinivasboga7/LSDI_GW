@@ -45,8 +45,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
-	for {
-		time.Sleep(5 * time.Second)
+	for i := 0; i < 1000; i++ {
 		hash := Crypto.Hash([]byte("Hello,World!"))
 		cli.IssueTransaction(hash[:])
 	}

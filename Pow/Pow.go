@@ -36,6 +36,7 @@ func PoW(item interface{}, difficulty int) {
 
 //VerifyPoW verifies if the nonce field of tx matches the difficulty
 func VerifyPoW(tx interface{}, difficulty int) bool {
+	// optimize this method by passing serial form of transaction
 	var s []byte
 	switch t := tx.(type) {
 	case dt.Transaction:

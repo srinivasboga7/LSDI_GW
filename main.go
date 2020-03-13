@@ -9,6 +9,7 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -30,11 +31,14 @@ func main() {
 	dag.Graph[Crypto.EncodeToHex(genisisHash[:])] = v
 	var ch chan p2p.Msg
 	ch = node.New(&ID, &dag, PrivateKey)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	var cli client.Client
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
 	cli.SimulateClient()
+	wg.Wait()
 }
 
 func constructGenisis() dt.Vertex {

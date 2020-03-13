@@ -124,6 +124,7 @@ func (p *Peer) handleMsg(msg Msg) error {
 		SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
+
 		p.rw.Close()
 		return errors.New("peer requested to disconnect")
 	case msg.ID > 31:

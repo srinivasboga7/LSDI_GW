@@ -7,7 +7,14 @@ import (
 	"GO-DAG/serialize"
 	sh "GO-DAG/sharding"
 	"GO-DAG/storage"
+	"fmt"
 	"log"
+	"os"
+	"time"
+)
+
+var (
+	f, _ = os.Create("logFile.txt")
 )
 
 // New ...
@@ -37,10 +44,11 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		// transaction
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		// log.Println(hex.EncodeToString(tx.LeftTip[:]))
-		if validTransaction(tx, sign) {
+		if validTransaction(msg.Payload, tx.From[:]) {
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 1 {
 				send <- msg
+				f.WriteString(fmt.Sprintf("%d\n", time.Now().Nanosecond()))
 			} else if tr == 2 {
 				var msg p2p.Msg
 				msg.ID = 34
@@ -71,7 +79,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		}
 	} else if msg.ID == 33 {
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
-		if validTransaction(tx, sign) {
+		if validTransaction(msg.Payload, tx.From[:]) {
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 2 {
 				var msg p2p.Msg
@@ -116,8 +124,12 @@ func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, ShardSignalch chan dt.S
 	}
 }
 
-func validTransaction(tx dt.Transaction, sign []byte) bool {
-	return true
+func validTransaction(msg []byte, PublicKey []byte) bool {
+
+	sTx := msg[:len(msg)-72]
+	sign := msg[len(msg)-72:]
+	h := Crypto.Hash(sTx)
+	return Crypto.Verify(sign, Crypto.DeserializePublicKey(PublicKey), h[:])
 }
 
 func getAllKeys(dag *dt.DAG) []string {

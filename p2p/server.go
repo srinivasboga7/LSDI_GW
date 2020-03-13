@@ -5,7 +5,9 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/serialize"
 	sh "GO-DAG/sharding"
+	"bytes"
 	"crypto/ecdsa"
+	"encoding/binary"
 	"errors"
 	"log"
 	"net"
@@ -24,14 +26,21 @@ type handshakeMsg struct {
 }
 
 func (msg *handshakeMsg) encode() []byte {
-	return append(msg.ID.IP, msg.ID.PublicKey...)
+	b := new(bytes.Buffer)
+	binary.Write(b, binary.LittleEndian, msg.ID.ShardID)
+	ret := append(msg.ID.IP, msg.ID.PublicKey...)
+	return append(ret, b.Bytes()...)
 }
 
 func validateHandshakeMsg(reply []byte) (PeerID, error) {
 	// figure out some validation criteria
 	var p PeerID
 	p.IP = reply[:4]
-	p.PublicKey = reply[4:]
+	p.PublicKey = reply[4:69]
+	buf := bytes.NewReader(reply[69:])
+	var sid uint32
+	binary.Read(buf, binary.LittleEndian, &sid)
+	p.ShardID = sid
 	return p, nil
 }
 
@@ -65,6 +74,15 @@ func (srv *Server) GetRandomPeer() Peer {
 		srv.mux.Unlock()
 	}
 	return p
+}
+
+func (srv *Server) findPeer(peer PeerID) bool {
+	for _, p := range srv.peers {
+		if p.ID.Equals(peer) {
+			return true
+		}
+	}
+	return false
 }
 
 // setupConn validates a handshake with the other peer
@@ -241,7 +259,9 @@ func (srv *Server) Run() {
 			Shardingtx, err := sh.MakeShardingtx(srv.HostID.PublicKey, signal)
 			srv.HostID.ShardID = srv.HostID.ShardID*10 + Shardingtx.ShardNo
 			Shardingtx.ShardNo = srv.HostID.ShardID
+
 			copy(Shardingtx.IP[:], srv.HostID.IP)
+
 			if err != nil {
 				log.Println(err)
 				continue
@@ -278,14 +298,16 @@ func (srv *Server) Run() {
 			time.Sleep(time.Second)
 
 			for _, pID := range shPeers {
-				// check first if it's already present in srv.Peers
-				conn, err := srv.initiateConnection(pID)
-				if err != nil {
-					log.Println(err)
-				} else {
-					p := newPeer(conn, pID)
-					srv.AddPeer(p)
-					srv.NewPeer <- *p
+
+				if !srv.findPeer(pID) {
+					conn, err := srv.initiateConnection(pID)
+					if err != nil {
+						log.Println(err)
+					} else {
+						p := newPeer(conn, pID)
+						srv.AddPeer(p)
+						srv.NewPeer <- *p
+					}
 				}
 			}
 			// send the discovery server appropriate information
