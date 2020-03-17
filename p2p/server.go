@@ -215,7 +215,7 @@ func (srv *Server) initiateConnection(pID PeerID) (net.Conn, error) {
 func (srv *Server) discOldPeers() {
 	srv.mux.Lock()
 	for _, p := range srv.peers {
-		if p.ID.ShardID != srv.HostID.ShardID {
+		if p.ID.ShardID != srv.HostID.ShardID && p.ID.ShardID != 0 {
 			var msg Msg
 			msg.ID = 3
 			msg.LenPayload = 0

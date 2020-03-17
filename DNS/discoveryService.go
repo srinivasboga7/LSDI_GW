@@ -250,7 +250,7 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 			x := rand.Intn(len(nodes.GWNodes.shards))
 			newPeer.ShardID = nodes.GWNodes.shards[x].ShardID
 		} else {
-			newPeer.ShardID = 1
+			newPeer.ShardID = 0
 		}
 		newPeer.PublicKey = PubKey
 		newPeer.networkAddr = IP

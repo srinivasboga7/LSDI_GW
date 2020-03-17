@@ -84,7 +84,7 @@ func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 		binary.Read(r, binary.LittleEndian, &s.ShardID)
 		p = append(p, s)
 	}
-	if len(p) > 0 {
+	if len(p) > 1 {
 		localID.ShardID = p[0].ShardID
 	} else {
 		localID.ShardID = 1
