@@ -5,6 +5,7 @@ import (
 	db "GO-DAG/database"
 	"GO-DAG/serialize"
 	"crypto/sha256"
+	"log"
 	"sync"
 	// "net"
 )
@@ -44,6 +45,7 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			l, okL := dag.Graph[left]
 			r, okR := dag.Graph[right]
 			if !okL || !okR {
+				log.Println("orphan transaction")
 				if !okL {
 					orphanedTransactions[left] = append(orphanedTransactions[left], node)
 				}
@@ -101,6 +103,7 @@ func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
 	if ok {
 		for _, node := range list {
 			if AddTransaction(dag, node.Tx, node.Signature) == 1 {
+				log.Println("resolved transaction")
 			}
 		}
 	}

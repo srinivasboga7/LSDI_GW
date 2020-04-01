@@ -28,8 +28,10 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	copy(tx.From[:], Crypto.SerializePublicKey(&cli.PrivateKey.PublicKey))
 	// tip selection
 	// broadcast transaction
+	cli.DAG.Mux.Lock()
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
+	cli.DAG.Mux.Unlock()
 	pow.PoW(&tx, 4)
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
@@ -46,6 +48,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
 	for i := 0; i < 1000; i++ {
+		time.Sleep(5 * time.Second)
 		hash := Crypto.Hash([]byte("Hello,World!"))
 		cli.IssueTransaction(hash[:])
 	}

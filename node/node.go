@@ -5,7 +5,6 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
-	sh "GO-DAG/sharding"
 	"GO-DAG/storage"
 	"fmt"
 	"log"
@@ -25,7 +24,7 @@ func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Ms
 	srv.BroadcastMsg = make(chan p2p.Msg)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
-	srv.ShardTransactions = make(chan dt.ShardTransaction)
+	srv.ShardTransactions = make(chan dt.ShardTransactionCh)
 	srv.ShardingSignal = make(chan dt.ShardSignal)
 	srv.PrivateKey = PrivKey
 	go srv.Run()
@@ -38,7 +37,7 @@ func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Ms
 	return srv.BroadcastMsg
 }
 
-func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransaction) {
+func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransactionCh) {
 	// check for transactions or request for transactions
 	if msg.ID == 32 {
 		// transaction
@@ -67,7 +66,9 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	} else if msg.ID == 34 {
 		// request for transaction
 		hash := msg.Payload
+		dag.Mux.Lock()
 		v, ok := dag.Graph[Crypto.EncodeToHex(hash)]
+		dag.Mux.Unlock()
 		if ok {
 			tx := v.Tx
 			sign := v.Signature
@@ -105,14 +106,18 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		}
 	} else if msg.ID == 36 { //Sharding tx from other nodes
 		tx, sign := serialize.Decode36(msg.Payload, msg.LenPayload)
-		if sh.VerifyShardTransaction(tx, sign, 4) {
-			Shardtxch <- tx
-		}
+		// if sh.VerifyShardTransaction(tx, sign, 4) {
+		// 	Shardtxch <- tx
+		// }
+		var sch dt.ShardTransactionCh
+		sch.Tx = tx
+		sch.Sign = sign
+		Shardtxch <- sch
 	}
 }
 
 // read the messages and handle
-func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransaction, errChan chan p2p.Peer) {
+func handle(p *p2p.Peer, send chan p2p.Msg, dag *dt.DAG, ShardSignalch chan dt.ShardSignal, Shardtxch chan dt.ShardTransactionCh, errChan chan p2p.Peer) {
 	for {
 		msg, err := p.GetMsg()
 		if err != nil {

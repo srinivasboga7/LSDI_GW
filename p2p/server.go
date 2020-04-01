@@ -55,7 +55,7 @@ type Server struct {
 	BroadcastMsg      chan Msg
 	RemovePeer        chan Peer
 	ShardingSignal    chan dt.ShardSignal
-	ShardTransactions chan dt.ShardTransaction
+	ShardTransactions chan dt.ShardTransactionCh
 	PrivateKey        *ecdsa.PrivateKey
 	// ...
 }
@@ -78,7 +78,7 @@ func (srv *Server) GetRandomPeer() Peer {
 
 func (srv *Server) findPeer(peer PeerID) bool {
 	for _, p := range srv.peers {
-		if p.ID.Equals(peer) {
+		if p.ID.Equals(peer) && p.ID.ShardID == peer.ShardID {
 			return true
 		}
 	}
@@ -116,6 +116,7 @@ func (srv *Server) setupConn(conn net.Conn) error {
 	p := newPeer(conn, pid)
 	srv.AddPeer(p)
 	srv.NewPeer <- *p
+	log.Println("New connection from", parseAddr(p.ID.IP))
 	return nil
 }
 
@@ -157,7 +158,6 @@ func (srv *Server) AddPeer(p *Peer) {
 // RemovePeer ...
 func (srv *Server) removePeer(peer Peer) {
 	// terminate the corresponding go routine and cleanup
-	srv.mux.Lock()
 	for i, p := range srv.peers {
 		if p.ID.Equals(peer.ID) {
 			srv.peers[i] = srv.peers[len(srv.peers)-1]
@@ -165,7 +165,6 @@ func (srv *Server) removePeer(peer Peer) {
 			break
 		}
 	}
-	srv.mux.Unlock()
 	return
 }
 
@@ -181,6 +180,7 @@ func (srv *Server) listenForConns() {
 		ip = ip[:strings.IndexByte(ip, ':')]
 		// sharding signal from discovery service
 		if ip == discvServer[:strings.IndexByte(discvServer, ':')] {
+			log.Println("sharding signal recieved")
 			msg, _ := ReadMsg(conn)
 			shSignal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
 			srv.ShardingSignal <- shSignal
@@ -219,7 +219,8 @@ func (srv *Server) discOldPeers() {
 			var msg Msg
 			msg.ID = 3
 			msg.LenPayload = 0
-			p.Send(msg)
+			err := p.Send(msg)
+			log.Println(err)
 			srv.removePeer(p)
 		}
 	}
@@ -259,6 +260,7 @@ func (srv *Server) Run() {
 			Shardingtx, err := sh.MakeShardingtx(srv.HostID.PublicKey, signal)
 			srv.HostID.ShardID = srv.HostID.ShardID*10 + Shardingtx.ShardNo
 			Shardingtx.ShardNo = srv.HostID.ShardID
+			log.Println("sharding transaction created", Shardingtx.ShardNo)
 
 			copy(Shardingtx.IP[:], srv.HostID.IP)
 
@@ -287,7 +289,7 @@ func (srv *Server) Run() {
 						l++
 					}
 				}
-				if l > 1 {
+				if l > 0 {
 					break
 				}
 				time.Sleep(time.Second)
@@ -299,7 +301,11 @@ func (srv *Server) Run() {
 
 			for _, pID := range shPeers {
 
-				if !srv.findPeer(pID) {
+				srv.mux.Lock()
+				d := srv.findPeer(pID)
+				srv.mux.Unlock()
+
+				if !d {
 					conn, err := srv.initiateConnection(pID)
 					if err != nil {
 						log.Println(err)
@@ -311,10 +317,10 @@ func (srv *Server) Run() {
 				}
 			}
 			// send the discovery server appropriate information
-			updateShardID(srv.HostID)
+			time.Sleep(15 * time.Second)
+			//updateShardID(srv.HostID)
 			srv.discOldPeers()
 			log.Println("sharding complete")
-			time.Sleep(10 * time.Second)
 			var emptySlice []PeerID
 			tempPeers = emptySlice
 		}
@@ -328,8 +334,12 @@ func (srv *Server) Run() {
 		case <-srv.ec:
 			log.Fatal("error")
 		case p := <-srv.RemovePeer:
+			srv.mux.Lock()
 			srv.removePeer(p)
-		case tx := <-srv.ShardTransactions:
+			srv.mux.Unlock()
+		case sch := <-srv.ShardTransactions:
+			tx := sch.Tx
+			sign := sch.Sign
 			var p PeerID
 			p.IP = make([]byte, 4)
 			p.PublicKey = make([]byte, 65)
@@ -351,7 +361,7 @@ func (srv *Server) Run() {
 				tempPeers = append(tempPeers, p)
 				var msg Msg
 				msg.ID = 36
-				msg.Payload = serialize.Encode36(tx)
+				msg.Payload = append(serialize.Encode36(tx), sign...)
 				msg.LenPayload = uint32(len(msg.Payload))
 				Send(msg, srv.peers)
 			}

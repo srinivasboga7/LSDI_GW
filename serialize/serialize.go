@@ -99,7 +99,7 @@ func Decode36(payload []byte, lenPayload uint32) (dt.ShardTransaction, []byte) {
 	var tx dt.ShardTransaction
 	err := binary.Read(r, binary.LittleEndian, &tx)
 	if err != nil {
-		log.Println(err)
+		log.Println(err, "error due to serialization")
 	}
 	return tx, signature
 }

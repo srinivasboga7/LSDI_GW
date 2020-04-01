@@ -85,6 +85,7 @@ func queryDiscoveryService(servAddr string, localID *PeerID) ([]PeerID, error) {
 		p = append(p, s)
 	}
 	if len(p) > 1 {
+		log.Println("shard assigned", p[0].ShardID)
 		localID.ShardID = p[0].ShardID
 	} else {
 		localID.ShardID = 1

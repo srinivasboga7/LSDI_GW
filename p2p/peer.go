@@ -61,9 +61,7 @@ func newPeer(c net.Conn, pID PeerID) *Peer {
 
 // Send ...
 func (p *Peer) Send(msg Msg) error {
-	p.mux.Lock()
 	err := SendMsg(p.rw, msg)
-	p.mux.Unlock()
 	return err
 }
 

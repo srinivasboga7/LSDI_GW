@@ -31,6 +31,11 @@ type ShardTransaction struct {
 	Nonce      uint32
 }
 
+type ShardTransactionCh struct {
+	Tx   ShardTransaction
+	Sign []byte
+}
+
 // Peers maintains the list of all peers connected to the node
 type Peers struct {
 	Mux sync.Mutex

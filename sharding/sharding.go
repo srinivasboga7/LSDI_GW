@@ -36,7 +36,7 @@ func VerifyShardTransaction(tx dt.ShardTransaction, signature []byte, difficulty
 		log.Println("INVALID SIGNATURE")
 	}
 	// also verify the shardNo with the nonce
-	return sigVerify && pow.VerifyPoW(tx, difficulty)
+	return sigVerify
 }
 
 //MakeShardingtx Call on recieving sharding signal from discovery after forwarding it
