@@ -9,6 +9,7 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
+	"fmt"
 	"time"
 )
 
@@ -32,7 +33,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	cli.DAG.Mux.Unlock()
-	pow.PoW(&tx, 4)
+	pow.PoW(&tx, 3)
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
 	msg.ID = 32
@@ -47,9 +48,14 @@ func (cli *Client) IssueTransaction(hash []byte) {
 
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
-	for i := 0; i < 1000; i++ {
-		time.Sleep(5 * time.Second)
+	// for i := 0; i < 100; i++ {
+	time.Sleep(30 * time.Second)
+	i := 0
+	for {
+		fmt.Println(i)
+		// time.Sleep(5 * time.Second)
 		hash := Crypto.Hash([]byte("Hello,World!"))
 		cli.IssueTransaction(hash[:])
+		i++
 	}
 }

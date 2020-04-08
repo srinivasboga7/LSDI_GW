@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	rwDeadline = 30 * time.Second
+	rwDeadline = 200 * time.Second
 )
 
 // Msg is the structure of all the msgs in the p2p network

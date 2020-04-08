@@ -6,15 +6,13 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
-	"fmt"
 	"log"
-	"os"
-	"time"
 )
 
-var (
-	f, _ = os.Create("logFile.txt")
-)
+// var (
+// 	f, _    = os.Create("temp/logFile.txt")
+// 	logLock sync.Mutex
+// )
 
 // New ...
 func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Msg {
@@ -47,20 +45,28 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 			tr := storage.AddTransaction(dag, tx, sign)
 			if tr == 1 {
 				send <- msg
-				f.WriteString(fmt.Sprintf("%d\n", time.Now().Nanosecond()))
+				// logLock.Lock()
+				// f.WriteString(fmt.Sprintf("%d %d %d\n", p.ID.IP, time.Now().Minute(), time.Now().Second()))
+				// logLock.Unlock()
 			} else if tr == 2 {
 				var msg p2p.Msg
 				msg.ID = 34
-				if !storage.CheckifPresentDb(tx.LeftTip[:]) {
+				left := serialize.EncodeToHex(tx.LeftTip[:])
+				right := serialize.EncodeToHex(tx.RightTip[:])
+				dag.Mux.Lock()
+				if _, t1 := dag.Graph[left]; !t1 {
 					msg.Payload = tx.LeftTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
-				if !storage.CheckifPresentDb(tx.RightTip[:]) {
+				dag.Mux.Unlock()
+				dag.Mux.Lock()
+				if _, t2 := dag.Graph[right]; !t2 {
 					msg.Payload = tx.RightTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
+				dag.Mux.Unlock()
 			}
 		}
 	} else if msg.ID == 34 {
@@ -85,16 +91,22 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 			if tr == 2 {
 				var msg p2p.Msg
 				msg.ID = 34
-				if !storage.CheckifPresentDb(tx.LeftTip[:]) {
+				left := serialize.EncodeToHex(tx.LeftTip[:])
+				right := serialize.EncodeToHex(tx.RightTip[:])
+				dag.Mux.Lock()
+				if _, t1 := dag.Graph[left]; !t1 {
 					msg.Payload = tx.LeftTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
-				if !storage.CheckifPresentDb(tx.RightTip[:]) {
+				dag.Mux.Unlock()
+				dag.Mux.Lock()
+				if _, t2 := dag.Graph[right]; !t2 {
 					msg.Payload = tx.RightTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
+				dag.Mux.Unlock()
 			}
 		}
 	} else if msg.ID == 35 { //Shard signal

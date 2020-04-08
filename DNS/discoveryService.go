@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	maxNodes = 5
+	maxNodes = 100
 )
 
 type peerAddr struct {
@@ -283,7 +283,6 @@ func main() {
 	firstShard.ShardID = 1
 	nodes.GWNodes.shards = append(nodes.GWNodes.shards, firstShard)
 	listener, err := net.Listen("tcp", ":"+port)
-
 	if Crypto.CheckForKeys() {
 		PrivateKey = Crypto.LoadKeys()
 	} else {
