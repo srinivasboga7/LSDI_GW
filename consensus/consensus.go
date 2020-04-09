@@ -247,7 +247,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	Ledger.Mux.Unlock()
 
 	// perform tip selection on copy of the subgraph
-	var Rating map[string]int
+	Rating := make(map[string]int)
 	calRating(graph, start, Rating)
 	Weights := RatingtoWeights(Rating, alpha)
 	Tip := RandomWalk(graph, start, Weights)

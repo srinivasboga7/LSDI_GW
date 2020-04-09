@@ -6,9 +6,7 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
-	"fmt"
 	"log"
-	"time"
 )
 
 // var (
@@ -50,7 +48,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 				// logLock.Lock()
 				// f.WriteString(fmt.Sprintf("%d %d %d\n", p.ID.IP, time.Now().Minute(), time.Now().Second()))
 				// logLock.Unlock()
-				fmt.Println(time.Now())
+				// fmt.Println(time.Now())
 			} else if tr == 2 {
 				var msg p2p.Msg
 				msg.ID = 34

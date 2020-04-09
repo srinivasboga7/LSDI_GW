@@ -9,7 +9,6 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
-	"fmt"
 	"time"
 )
 
@@ -50,12 +49,12 @@ func (cli *Client) IssueTransaction(hash []byte) {
 func (cli *Client) SimulateClient() {
 	// for i := 0; i < 100; i++ {
 	time.Sleep(30 * time.Second)
-	i := 0
+	// i := 0
 	for {
-		fmt.Println(i)
+		// fmt.Println(i)
 		// time.Sleep(5 * time.Second)
 		hash := Crypto.Hash([]byte("Hello,World!"))
 		cli.IssueTransaction(hash[:])
-		i++
+		// i++
 	}
 }
