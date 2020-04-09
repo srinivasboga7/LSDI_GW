@@ -2,8 +2,8 @@ package consensus
 
 import (
 	dt "GO-DAG/DataTypes"
-	"GO-DAG/snapshot"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/rand"
 	// "GO-DAG/dt"
@@ -221,12 +221,16 @@ func GetAllTips(Graph map[string]dt.Vertex) []string {
 // GetTip returns the tip after a random walk from a point chosen by BackTrack
 func GetTip(Ledger *dt.DAG, alpha float64) string {
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
+	fmt.Println("1")
 	Rating := CalculateRating(Ledger.Graph, start)
+	fmt.Println("2")
 	Weights := RatingtoWeights(Rating, alpha)
+	fmt.Println("3")
 	Tip := RandomWalk(Ledger.Graph, start, Weights)
-	if Rating[Ledger.Genisis] > 2000 {
-		snapshot.PruneDag(Ledger, Rating)
-	}
+	fmt.Println("4")
+	// if Rating[Ledger.Genisis] > 2000 {
+	// 	snapshot.PruneDag(Ledger, Rating)
+	// }
 	return Tip
 }
 
