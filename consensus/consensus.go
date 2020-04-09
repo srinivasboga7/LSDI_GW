@@ -3,7 +3,6 @@ package consensus
 import (
 	dt "GO-DAG/DataTypes"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"math/rand"
 	// "GO-DAG/dt"
@@ -95,7 +94,7 @@ func IsTip(Graph map[string]dt.Vertex, Transaction string) bool {
 	}
 }
 
-func GetFutureSet_new(Graph map[string]dt.Vertex, Transaction string) ([]string, int) {
+func GetFutureSet(Graph map[string]dt.Vertex, Transaction string) ([]string, int) {
 	// BFS of the DAG to get the future set
 	var queue []string
 	queue = append(queue, Transaction)
@@ -115,20 +114,22 @@ func GetFutureSet_new(Graph map[string]dt.Vertex, Transaction string) ([]string,
 	return queue, count
 }
 
+// SelectSubgraph ...
 func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string {
 	//Returns the Subgraph transactions hashes as a slice
-	SelectedSubGraph, _ := GetFutureSet_new(Graph, LatestMilestone)
+	SelectedSubGraph, _ := GetFutureSet(Graph, LatestMilestone)
 	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
 	return SelectedSubGraph
 }
 
+// CalculateRating computes rating for each vertex in the DAG.
 func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[string]int {
 	//Calculetes the rating of all the transactions in the subgraph
 	SubGraph := SelectSubgraph(Graph, LatestMilestone)
 	//fmt.Println(SubGraph)
 	Rating := make(map[string]int)
 	for _, transaction := range SubGraph {
-		_, LengthFutureSet := GetFutureSet_new(Graph, transaction)
+		_, LengthFutureSet := GetFutureSet(Graph, transaction)
 		Rating[transaction] = LengthFutureSet + 1
 		//Rating is the length of the future set of the transaction + 1
 	}
@@ -136,6 +137,24 @@ func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[str
 	//Returns the Rating map of the hash to the integer value
 }
 
+// calRating calculates Rating in a DP fashion
+func calRating(Graph map[string]dt.Vertex, currPoint string, Rating map[string]int) {
+	neighbours := Graph[currPoint].Neighbours
+	total := 0
+	if len(neighbours) == 0 {
+		Rating[currPoint] = 1
+	} else {
+		for _, neighbour := range neighbours {
+			if _, ok := Rating[neighbour]; !ok {
+				calRating(Graph, neighbour, Rating)
+			}
+			total += Rating[neighbour]
+		}
+		Rating[currPoint] = total
+	}
+}
+
+// RatingtoWeights converts ratings to weights using alpha parameter
 func RatingtoWeights(Rating map[string]int, alpha float64) map[string]float64 {
 	// Gets the weights from the ratings incliding randomness from alpha value
 	Weights := make(map[string]float64)
@@ -163,7 +182,7 @@ func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, start
 	current := startingPoint
 	var rating int
 	for {
-		_, rating = GetFutureSet_new(Graph, current)
+		_, rating = GetFutureSet(Graph, current)
 		if rating > Threshhold || current == Genisis {
 			break
 		}
@@ -220,96 +239,31 @@ func GetAllTips(Graph map[string]dt.Vertex) []string {
 
 // GetTip returns the tip after a random walk from a point chosen by BackTrack
 func GetTip(Ledger *dt.DAG, alpha float64) string {
+
+	// copy only the subgraph required for tip selection
+	Ledger.Mux.Lock()
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
-	fmt.Println("1")
-	Rating := CalculateRating(Ledger.Graph, start)
-	fmt.Println("2")
+	graph := GetSubGraph(Ledger.Graph, start)
+	Ledger.Mux.Unlock()
+
+	// perform tip selection on copy of the subgraph
+	var Rating map[string]int
+	calRating(graph, start, Rating)
 	Weights := RatingtoWeights(Rating, alpha)
-	fmt.Println("3")
-	Tip := RandomWalk(Ledger.Graph, start, Weights)
-	fmt.Println("4")
-	// if Rating[Ledger.Genisis] > 2000 {
-	// 	snapshot.PruneDag(Ledger, Rating)
-	// }
+	Tip := RandomWalk(graph, start, Weights)
 	return Tip
 }
-
-// // PruneDag prunes the Old Transactions to reduce memory overhead
-// func PruneDag(dag *dt.DAG, Ratings map[string] int) {
-// 	// select a milestone which references all the tips
-// 	NewMilestone := getNewMilestone(Ratings,*dag)
-// 	fmt.Println(len(GetAllTips(dag.Graph)))
-// 	DeleteOldtransactions(dag,NewMilestone)
-// 	fmt.Println(len(GetAllTips(dag.Graph)))
-// 	dag.Genisis = NewMilestone
-// 	var tip [32]byte
-// 	genesisNode := dag.Graph[dag.Genisis]
-// 	genesisNode.Tx.LeftTip = tip
-// 	genesisNode.Tx.RightTip = tip
-// 	dag.Graph[dag.Genisis] = genesisNode
-// 	fmt.Println(Ratings[dag.Genisis],len(dag.Graph))
-// 	return
-// }
-
-// // DeleteOldtransactions deletes the transactions referenced by NewMilestone
-// func DeleteOldtransactions(dag *dt.DAG,NewMilestone string) {
-// 	tx := dag.Graph[NewMilestone].Tx
-// 	var tip [32]byte
-// 	if tx.LeftTip == tip && tx.RightTip == tip {
-// 		return
-// 	}
-// 	l := EncodeToHex(tx.LeftTip[:])
-// 	r := EncodeToHex(tx.RightTip[:])
-// 	if l == r {
-// 		if _,ok := dag.Graph[l]; ok {
-// 		DeleteOldtransactions(dag,l)
-// 		delete(dag.Graph,l)
-// 		}
-// 	} else {
-// 		if _,ok := dag.Graph[l]; ok{
-// 			DeleteOldtransactions(dag,l)
-// 			delete(dag.Graph,l)
-// 		}
-// 		if _,ok := dag.Graph[r]; ok {
-// 			DeleteOldtransactions(dag,r)
-// 			delete(dag.Graph,r)
-// 		}
-// 	}
-// 	return
-// }
 
 // GetSubGraph identifies the subGraph formed by Milestone
 func GetSubGraph(Graph map[string]dt.Vertex, Milestone string) map[string]dt.Vertex {
 	SubDag := make(map[string]dt.Vertex)
 	s := SelectSubgraph(Graph, Milestone)
 	for _, v := range s {
-		SubDag[v] = Graph[v]
+		var copyVertex dt.Vertex
+		copyVertex.Tx = Graph[v].Tx
+		copy(copyVertex.Neighbours, Graph[v].Neighbours)
+		copyVertex.Signature = Graph[v].Signature
+		SubDag[v] = copyVertex
 	}
 	return SubDag
 }
-
-// func getMaxSet(Ratings map[string] int, neighbours []string) string {
-// 	step := neighbours[0]
-// 	max := Ratings[neighbours[0]]
-// 	for _,v := range neighbours {
-// 		if Ratings[v] > max {
-// 			max = Ratings[v]
-// 			step = v
-// 		}
-// 	}
-// 	return step
-// }
-
-// func getNewMilestone(Ratings map[string] int, dag dt.DAG) string {
-// 	prev := dag.Genisis
-// 	path := dag.Genisis
-// 	for {
-// 		neighbours := dag.Graph[path].Neighbours
-// 		path = getMaxSet(Ratings,neighbours)
-// 		if Ratings[path] < 1000 {
-// 			break
-// 		}
-// 		prev = path
-// 	}
-// 	return prev
-// }

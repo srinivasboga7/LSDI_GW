@@ -29,13 +29,10 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	copy(tx.From[:], Crypto.SerializePublicKey(&cli.PrivateKey.PublicKey))
 	// tip selection
 	// broadcast transaction
-	fmt.Println("Waiting for lock")
-	cli.DAG.Mux.Lock()
-	fmt.Println("Inside lock")
+
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
-	cli.DAG.Mux.Unlock()
-	fmt.Println("RELEASED lock")
+
 	pow.PoW(&tx, 3)
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
