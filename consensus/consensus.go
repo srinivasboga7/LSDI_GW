@@ -2,7 +2,6 @@ package consensus
 
 import (
 	dt "GO-DAG/DataTypes"
-	"GO-DAG/snapshot"
 	"encoding/hex"
 	"math"
 	"math/rand"
@@ -138,6 +137,23 @@ func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[str
 	//Returns the Rating map of the hash to the integer value
 }
 
+// calRating calculates Rating in a DP fashion
+func calRating(Graph map[string]dt.Vertex, currPoint string, Rating map[string]int) {
+	neighbours := Graph[currPoint].Neighbours
+	total := 0
+	if len(neighbours) == 0 {
+		Rating[currPoint] = 1
+	} else {
+		for _, neighbour := range neighbours {
+			if _, ok := Rating[neighbour]; !ok {
+				calRating(Graph, neighbour, Rating)
+			}
+			total += Rating[neighbour]
+		}
+		Rating[currPoint] = total
+	}
+}
+
 // RatingtoWeights converts ratings to weights using alpha parameter
 func RatingtoWeights(Rating map[string]int, alpha float64) map[string]float64 {
 	// Gets the weights from the ratings incliding randomness from alpha value
@@ -223,13 +239,18 @@ func GetAllTips(Graph map[string]dt.Vertex) []string {
 
 // GetTip returns the tip after a random walk from a point chosen by BackTrack
 func GetTip(Ledger *dt.DAG, alpha float64) string {
+
+	// copy only the subgraph required for tip selection
+	Ledger.Mux.Lock()
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
-	Rating := CalculateRating(Ledger.Graph, start)
+	graph := GetSubGraph(Ledger.Graph, start)
+	Ledger.Mux.Unlock()
+
+	// perform tip selection on copy of the subgraph
+	var Rating map[string]int
+	calRating(graph, start, Rating)
 	Weights := RatingtoWeights(Rating, alpha)
-	Tip := RandomWalk(Ledger.Graph, start, Weights)
-	if Rating[Ledger.Genisis] > 2000 {
-		snapshot.PruneDag(Ledger, Rating, 2000)
-	}
+	Tip := RandomWalk(graph, start, Weights)
 	return Tip
 }
 
@@ -238,7 +259,11 @@ func GetSubGraph(Graph map[string]dt.Vertex, Milestone string) map[string]dt.Ver
 	SubDag := make(map[string]dt.Vertex)
 	s := SelectSubgraph(Graph, Milestone)
 	for _, v := range s {
-		SubDag[v] = Graph[v]
+		var copyVertex dt.Vertex
+		copyVertex.Tx = Graph[v].Tx
+		copy(copyVertex.Neighbours, Graph[v].Neighbours)
+		copyVertex.Signature = Graph[v].Signature
+		SubDag[v] = copyVertex
 	}
 	return SubDag
 }
