@@ -2,6 +2,7 @@ package consensus
 
 import (
 	dt "GO-DAG/DataTypes"
+	"GO-DAG/snapshot"
 	"encoding/hex"
 	"math"
 	"math/rand"
@@ -250,6 +251,12 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	calRating(Ledger.Graph, start, Rating)
 	Weights := RatingtoWeights(Rating, alpha)
 	Tip := RandomWalk(Ledger.Graph, start, Weights)
+
+	if len(Ledger.Graph) > 5000 {
+		var allRatings map[string]int
+		calRating(Ledger.Graph, Ledger.Genisis, allRatings)
+		snapshot.PruneDag(Ledger, allRatings, 2500)
+	}
 
 	Ledger.Mux.Unlock()
 
