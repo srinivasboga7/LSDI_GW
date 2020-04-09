@@ -243,14 +243,16 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	// copy only the subgraph required for tip selection
 	Ledger.Mux.Lock()
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
-	graph := GetSubGraph(Ledger.Graph, start)
-	Ledger.Mux.Unlock()
+	// graph := GetSubGraph(Ledger.Graph, start)
 
 	// perform tip selection on copy of the subgraph
-	Rating := make(map[string]int)
-	calRating(graph, start, Rating)
+	var Rating map[string]int
+	calRating(Ledger.Graph, start, Rating)
 	Weights := RatingtoWeights(Rating, alpha)
-	Tip := RandomWalk(graph, start, Weights)
+	Tip := RandomWalk(Ledger.Graph, start, Weights)
+
+	Ledger.Mux.Unlock()
+
 	return Tip
 }
 
