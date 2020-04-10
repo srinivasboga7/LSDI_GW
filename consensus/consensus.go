@@ -181,13 +181,25 @@ func GetEntryPoint(Tips []string) string {
 // BackTrack returns a point whose cumilative weight is greater than threshold
 func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, startingPoint string) string {
 	current := startingPoint
-	var rating int
-	for {
-		_, rating = GetFutureSet(Graph, current)
-		if rating > Threshhold || current == Genisis {
+	// var rating int
+	// for {
+	// 	_, rating = GetFutureSet(Graph, current)
+	// 	if rating > Threshhold || current == Genisis {
+	// 		break
+	// 	}
+	// 	tx := Graph[current].Tx
+	// 	if _, ok := Graph[EncodeToHex(tx.LeftTip[:])]; !ok {
+	// 		break
+	// 	}
+	// 	current = EncodeToHex(tx.LeftTip[:])
+	// }
+
+	for i := 0; i < 5; i++ {
+		if current == Genisis {
 			break
 		}
 		tx := Graph[current].Tx
+
 		if _, ok := Graph[EncodeToHex(tx.LeftTip[:])]; !ok {
 			break
 		}
