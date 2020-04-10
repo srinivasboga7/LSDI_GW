@@ -4,6 +4,7 @@ import (
 	dt "GO-DAG/DataTypes"
 	db "GO-DAG/database"
 	"GO-DAG/serialize"
+	"bytes"
 	"crypto/sha256"
 	"log"
 	"sync"
@@ -44,13 +45,35 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			right := serialize.EncodeToHex(tx.RightTip[:])
 			l, okL := dag.Graph[left]
 			r, okR := dag.Graph[right]
+
 			if !okL || !okR {
+				duplicateOrphanTx := false
 				log.Println("orphan transaction")
 				if !okL {
-					orphanedTransactions[left] = append(orphanedTransactions[left], node)
+					mux.Lock()
+					for _, orphantx := range orphanedTransactions[left] {
+						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
+							duplicateOrphanTx = true
+							break
+						}
+					}
+					if !duplicateOrphanTx {
+						orphanedTransactions[left] = append(orphanedTransactions[left], node)
+					}
+					mux.Unlock()
 				}
 				if !okR {
-					orphanedTransactions[right] = append(orphanedTransactions[right], node)
+					mux.Lock()
+					for _, orphantx := range orphanedTransactions[right] {
+						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
+							duplicateOrphanTx = true
+							break
+						}
+					}
+					if !duplicateOrphanTx {
+						orphanedTransactions[right] = append(orphanedTransactions[right], node)
+					}
+					mux.Unlock()
 				}
 				duplicationCheck = 2
 			} else {
