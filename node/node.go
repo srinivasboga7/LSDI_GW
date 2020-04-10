@@ -19,7 +19,7 @@ func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Ms
 
 	var srv p2p.Server
 	srv.HostID = *hostID
-	srv.BroadcastMsg = make(chan p2p.Msg)
+	srv.BroadcastMsg = make(chan p2p.Msg, 20)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
 	srv.ShardTransactions = make(chan dt.ShardTransactionCh)
@@ -60,8 +60,6 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
-				dag.Mux.Unlock()
-				dag.Mux.Lock()
 				if _, t2 := dag.Graph[right]; !t2 {
 					msg.Payload = tx.RightTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))

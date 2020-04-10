@@ -2,25 +2,25 @@ package Crypto
 
 import (
 	"crypto/ecdsa"
-	"crypto/sha256"
-	"crypto/rand"
-	"crypto/x509"
 	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
-	"encoding/asn1"
-	"os"
 	"math/big"
+	"os"
+
 	// "strings"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 )
 
 type PrivateKey *ecdsa.PrivateKey
 
-
 // PointsFromDER Deserialises signature from DER encoded format
-func PointsFromDER(der []byte) (*big.Int,*big.Int) {
+func PointsFromDER(der []byte) (*big.Int, *big.Int) {
 	R, S := &big.Int{}, &big.Int{}
 	data := asn1.RawValue{}
 	if _, err := asn1.Unmarshal(der, &data); err != nil {
@@ -33,11 +33,11 @@ func PointsFromDER(der []byte) (*big.Int,*big.Int) {
 	s := data.Bytes[rLen+4:]
 	R.SetBytes(r)
 	S.SetBytes(s)
-	return R,S
+	return R, S
 }
 
 // PointsToDER serialises signature to DER encoded format
-func PointsToDER(r,s *big.Int) []byte {
+func PointsToDER(r, s *big.Int) []byte {
 	// Ensure the encoded bytes for the r and s values are canonical and
 	// thus suitable for DER encoding.
 	rb := canonicalizeInt(r)
@@ -55,14 +55,13 @@ func PointsToDER(r,s *big.Int) []byte {
 	b[offset+1] = byte(len(sb))
 	copy(b[offset+2:], sb)
 	return b
-} 
+}
 
 //Hash returns the SHA256 hash value
 func Hash(b []byte) [32]byte {
 	h := sha256.Sum256(b)
 	return h
 }
-
 
 //EncodeToHex converts byte slice to the string
 func EncodeToHex(data []byte) string {
@@ -71,7 +70,7 @@ func EncodeToHex(data []byte) string {
 
 //DecodeToBytes converts string to byte slice
 func DecodeToBytes(data string) []byte {
-	b,_ := hex.DecodeString(data)
+	b, _ := hex.DecodeString(data)
 	return b
 }
 
@@ -79,7 +78,7 @@ func DecodeToBytes(data string) []byte {
 func CheckForKeys() bool {
 	// Returns true if file is present in the directory
 	filename := "PrivateKey.pem"
-	if _,err := os.Stat(filename) ; os.IsNotExist(err) {
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -87,13 +86,13 @@ func CheckForKeys() bool {
 
 //SerializePublicKey serialises the public key to byte slice
 func SerializePublicKey(PublicKey *ecdsa.PublicKey) []byte {
-	key := elliptic.Marshal(PublicKey,PublicKey.X,PublicKey.Y)
+	key := elliptic.Marshal(PublicKey, PublicKey.X, PublicKey.Y)
 	return key // uncompressed public key in bytes lenghth 65
 }
 
 //SerializePrivateKey serialises the private key to byte slice
-func SerializePrivateKey(privateKey *ecdsa.PrivateKey) []byte{
-	key,_ := x509.MarshalECPrivateKey(privateKey)
+func SerializePrivateKey(privateKey *ecdsa.PrivateKey) []byte {
+	key, _ := x509.MarshalECPrivateKey(privateKey)
 	return key
 }
 
@@ -101,26 +100,27 @@ func SerializePrivateKey(privateKey *ecdsa.PrivateKey) []byte{
 func DeserializePublicKey(data []byte) *ecdsa.PublicKey {
 	var PublicKey ecdsa.PublicKey
 	PublicKey.Curve = elliptic.P256()
-	PublicKey.X,PublicKey.Y = elliptic.Unmarshal(elliptic.P256(),data)
+	PublicKey.X, PublicKey.Y = elliptic.Unmarshal(elliptic.P256(), data)
 	return &PublicKey
 }
+
 //DeserializePrivateKey deserialises the private key from byte slice to ecdsa.PrivateKey
 func DeserializePrivateKey(data []byte) *ecdsa.PrivateKey {
-	PrivateKey,_ := x509.ParseECPrivateKey(data)
+	PrivateKey, _ := x509.ParseECPrivateKey(data)
 	return PrivateKey
 }
 
 //GenerateKeys generates the private key and stores in a pem file
 func GenerateKeys() *ecdsa.PrivateKey {
 	// function generates keys and creates a pem file with key stored in that
-	PrivateKey,err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	PrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		fmt.Println(err)
 	}
 	serialKey := SerializePrivateKey(PrivateKey)
-	file,_ := os.OpenFile("PrivateKey.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	file, _ := os.OpenFile("PrivateKey.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	pemBlock := &pem.Block{Type: "EC PRIVATE KEY", Bytes: serialKey} // serializing and writing to the pem file
-	if err := pem.Encode(file,pemBlock) ; err != nil {
+	if err := pem.Encode(file, pemBlock); err != nil {
 		fmt.Println(err)
 	}
 	file.Close()
@@ -131,11 +131,11 @@ func GenerateKeys() *ecdsa.PrivateKey {
 func LoadKeys() *ecdsa.PrivateKey {
 	// Loads the key from a pem file in directory
 	filename := "PrivateKey.pem"
-	bytes,err := ioutil.ReadFile(filename)
+	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Println(err)
 	}
-	block,_ := pem.Decode(bytes)
+	block, _ := pem.Decode(bytes)
 	PrivateKey := DeserializePrivateKey(block.Bytes)
 	return PrivateKey
 }
@@ -148,15 +148,16 @@ func Sign(hash []byte, key *ecdsa.PrivateKey) []byte {
 		fmt.Println("Invalid hash")
 		return signature[:]
 	}
-	r,s,_ := ecdsa.Sign(rand.Reader,key,hash)
-	copy(signature[:],PointsToDER(r,s))
+	r, s, _ := ecdsa.Sign(rand.Reader, key, hash)
+	copy(signature[:], PointsToDER(r, s))
 	return signature[:]
 }
 
 //Verify returns true if signature verified false otherwise
-func Verify(signature []byte , PublicKey *ecdsa.PublicKey, hash []byte) bool {
-	r,s := PointsFromDER(signature)
-	v := ecdsa.Verify(PublicKey,hash,r,s)
+func Verify(signature []byte, PublicKey *ecdsa.PublicKey, hash []byte) bool {
+	// fmt.Println(len(signature))
+	r, s := PointsFromDER(signature)
+	v := ecdsa.Verify(PublicKey, hash, r, s)
 	return v
 }
 

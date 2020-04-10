@@ -46,12 +46,14 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			r, okR := dag.Graph[right]
 			if !okL || !okR {
 				log.Println("orphan transaction")
+				mux.Lock()
 				if !okL {
 					orphanedTransactions[left] = append(orphanedTransactions[left], node)
 				}
 				if !okR {
 					orphanedTransactions[right] = append(orphanedTransactions[right], node)
 				}
+				mux.Unlock()
 				duplicationCheck = 2
 			} else {
 				dag.Graph[h] = node
@@ -97,6 +99,7 @@ func GetAllHashes() [][]byte {
 
 //checkorphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
 func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
+
 	mux.Lock()
 	list, ok := orphanedTransactions[h]
 	mux.Unlock()

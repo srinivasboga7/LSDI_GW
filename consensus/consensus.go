@@ -3,6 +3,7 @@ package consensus
 import (
 	dt "GO-DAG/DataTypes"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/rand"
 	// "GO-DAG/dt"
@@ -241,18 +242,22 @@ func GetAllTips(Graph map[string]dt.Vertex) []string {
 func GetTip(Ledger *dt.DAG, alpha float64) string {
 
 	// copy only the subgraph required for tip selection
+	fmt.Println("Waiting for lock")
 	Ledger.Mux.Lock()
+	fmt.Println("Inside lock")
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
+	fmt.Println("1")
 	// graph := GetSubGraph(Ledger.Graph, start)
 
 	// perform tip selection on copy of the subgraph
-	var Rating map[string]int
+	Rating := make(map[string]int)
 	calRating(Ledger.Graph, start, Rating)
+	fmt.Println("2")
 	Weights := RatingtoWeights(Rating, alpha)
 	Tip := RandomWalk(Ledger.Graph, start, Weights)
-
+	fmt.Println("3")
 	Ledger.Mux.Unlock()
-
+	fmt.Println("RELEASED LOCK")
 	return Tip
 }
 

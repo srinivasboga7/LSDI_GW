@@ -371,9 +371,14 @@ func (srv *Server) Run() {
 
 // Send ...
 func Send(msg Msg, peers []Peer) {
+	i := 0
 	for _, p := range peers {
 		if !p.ID.Equals(msg.Sender) {
 			SendMsg(p.rw, msg)
+			i++
+		}
+		if i == 4 {
+			break
 		}
 	}
 }
