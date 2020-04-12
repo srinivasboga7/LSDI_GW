@@ -31,8 +31,9 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	// broadcast transaction
 
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
+	fmt.Println(tx.LeftTip[:])
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
-
+	fmt.Println(tx.RightTip[:])
 	pow.PoW(&tx, 3)
 	fmt.Println("After pow")
 	b := serialize.Encode32(tx)

@@ -98,8 +98,6 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 					msg.LenPayload = uint32(len(msg.Payload))
 					p.Send(msg)
 				}
-				dag.Mux.Unlock()
-				dag.Mux.Lock()
 				if _, t2 := dag.Graph[right]; !t2 {
 					msg.Payload = tx.RightTip[:]
 					msg.LenPayload = uint32(len(msg.Payload))

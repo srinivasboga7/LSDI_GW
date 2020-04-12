@@ -1,8 +1,9 @@
 package consensus
 
 import (
+	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
-	"GO-DAG/snapshot"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -194,7 +195,7 @@ func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, start
 	// 	}
 	// 	current = EncodeToHex(tx.LeftTip[:])
 	// }
-
+	fmt.Println(current)
 	for i := 0; i < 5; i++ {
 		if current == Genisis {
 			break
@@ -206,6 +207,7 @@ func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, start
 		}
 		current = EncodeToHex(tx.LeftTip[:])
 	}
+	fmt.Println(current)
 	return current
 }
 
@@ -243,9 +245,12 @@ func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Weights map[
 // GetAllTips returns all the tips in the graph
 func GetAllTips(Graph map[string]dt.Vertex) []string {
 	var Tips []string
+	var zero [32]byte
 	for k, v := range Graph {
 		if len(v.Neighbours) < 2 {
-			Tips = append(Tips, k)
+			if !bytes.Equal(Crypto.DecodeToBytes(k), zero[:]) {
+				Tips = append(Tips, k)
+			}
 		}
 	}
 	return Tips
@@ -269,13 +274,17 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	Weights := RatingtoWeights(Rating, alpha)
 	Tip := RandomWalk(Ledger.Graph, start, Weights)
 	fmt.Println("3")
-	if len(Ledger.Graph) > 5000 {
-		var allRatings map[string]int
-		calRating(Ledger.Graph, Ledger.Genisis, allRatings)
-		snapshot.PruneDag(Ledger, allRatings, 2500)
-	}
+	// if len(Ledger.Graph) > 20000 {
+	// 	allRatings := make(map[string]int)
+	// 	calRating(Ledger.Graph, Ledger.Genisis, allRatings)
+	// 	snapshot.PruneDag(Ledger, allRatings, 2500)
+	// }
 	Ledger.Mux.Unlock()
 	fmt.Println("RELEASED LOCK")
+	var zero [32]byte
+	if bytes.Equal(Crypto.DecodeToBytes(Tip), zero[:]) {
+		panic("Null tip selected")
+	}
 	return Tip
 }
 

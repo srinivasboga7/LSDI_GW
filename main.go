@@ -4,7 +4,6 @@ import (
 	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/client"
-	"GO-DAG/database"
 	"GO-DAG/node"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
@@ -21,7 +20,7 @@ func main() {
 	} else {
 		PrivateKey = Crypto.GenerateKeys()
 	}
-	database.OpenDB()
+	// database.OpenDB()
 	var ID p2p.PeerID
 	ID.PublicKey = Crypto.SerializePublicKey(&PrivateKey.PublicKey)
 	var dag dt.DAG

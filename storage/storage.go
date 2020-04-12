@@ -39,19 +39,19 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			dag.Genisis = h
 			dag.Graph[h] = node
 			duplicationCheck = 1
+			log.Println(tx)
+			panic("Found anaother genesis !!!!!!!!")
 			// db.AddToDb(Txid, s)
 		} else {
 			left := serialize.EncodeToHex(tx.LeftTip[:])
 			right := serialize.EncodeToHex(tx.RightTip[:])
 			l, okL := dag.Graph[left]
 			r, okR := dag.Graph[right]
-
-			if !okL || !okR {
+			if !okL {
 				duplicateOrphanTx := false
-				log.Println("orphan transaction")
+				log.Println("left orphan transaction")
 				mux.Lock()
 				if !okL {
-					mux.Lock()
 					for _, orphantx := range orphanedTransactions[left] {
 						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
 							duplicateOrphanTx = true
@@ -61,20 +61,22 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 					if !duplicateOrphanTx {
 						orphanedTransactions[left] = append(orphanedTransactions[left], node)
 					}
-					mux.Unlock()
 				}
-				if !okR {
-					mux.Lock()
-					for _, orphantx := range orphanedTransactions[right] {
-						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
-							duplicateOrphanTx = true
-							break
-						}
+				mux.Unlock()
+				duplicationCheck = 2
+			}
+			if !okR {
+				duplicateOrphanTx := false
+				log.Println("right orphan transaction")
+				mux.Lock()
+				for _, orphantx := range orphanedTransactions[right] {
+					if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
+						duplicateOrphanTx = true
+						break
 					}
-					if !duplicateOrphanTx {
-						orphanedTransactions[right] = append(orphanedTransactions[right], node)
-					}
-					mux.Unlock()
+				}
+				if !duplicateOrphanTx {
+					orphanedTransactions[right] = append(orphanedTransactions[right], node)
 				}
 				mux.Unlock()
 				duplicationCheck = 2
@@ -126,6 +128,7 @@ func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
 	mux.Lock()
 	list, ok := orphanedTransactions[h]
 	mux.Unlock()
+
 	if ok {
 		for _, node := range list {
 			if AddTransaction(dag, node.Tx, node.Signature) == 1 {
