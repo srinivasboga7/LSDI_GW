@@ -47,11 +47,12 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 			right := serialize.EncodeToHex(tx.RightTip[:])
 			l, okL := dag.Graph[left]
 			r, okR := dag.Graph[right]
-			if !okL {
-				duplicateOrphanTx := false
-				log.Println("left orphan transaction")
-				mux.Lock()
+			if !okL || !okR {
 				if !okL {
+					duplicateOrphanTx := false
+					log.Println("left orphan transaction")
+					log.Println(left)
+					mux.Lock()
 					for _, orphantx := range orphanedTransactions[left] {
 						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
 							duplicateOrphanTx = true
@@ -61,35 +62,36 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 					if !duplicateOrphanTx {
 						orphanedTransactions[left] = append(orphanedTransactions[left], node)
 					}
+					mux.Unlock()
+					duplicationCheck = 2
 				}
-				mux.Unlock()
-				duplicationCheck = 2
-			}
-			if !okR {
-				duplicateOrphanTx := false
-				log.Println("right orphan transaction")
-				mux.Lock()
-				for _, orphantx := range orphanedTransactions[right] {
-					if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
-						duplicateOrphanTx = true
-						break
+				if !okR {
+					duplicateOrphanTx := false
+					log.Println("right orphan transaction")
+					log.Println(right)
+					mux.Lock()
+					for _, orphantx := range orphanedTransactions[right] {
+						if bytes.Compare(orphantx.Signature, node.Signature) == 0 {
+							duplicateOrphanTx = true
+							break
+						}
 					}
+					if !duplicateOrphanTx {
+						orphanedTransactions[right] = append(orphanedTransactions[right], node)
+					}
+					mux.Unlock()
+					duplicationCheck = 2
 				}
-				if !duplicateOrphanTx {
-					orphanedTransactions[right] = append(orphanedTransactions[right], node)
-				}
-				mux.Unlock()
-				duplicationCheck = 2
 			} else {
 				dag.Graph[h] = node
 				if left == right {
 					l.Neighbours = append(l.Neighbours, h)
-					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[left] = l
 				} else {
 					l.Neighbours = append(l.Neighbours, h)
-					dag.Graph[serialize.EncodeToHex(tx.LeftTip[:])] = l
+					dag.Graph[left] = l
 					r.Neighbours = append(r.Neighbours, h)
-					dag.Graph[serialize.EncodeToHex(tx.RightTip[:])] = r
+					dag.Graph[right] = r
 				}
 				duplicationCheck = 1
 				// db.AddToDb(Txid, s)

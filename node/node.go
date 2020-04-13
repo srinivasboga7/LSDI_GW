@@ -19,7 +19,7 @@ func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Ms
 
 	var srv p2p.Server
 	srv.HostID = *hostID
-	srv.BroadcastMsg = make(chan p2p.Msg, 20)
+	srv.BroadcastMsg = make(chan p2p.Msg)
 	srv.NewPeer = make(chan p2p.Peer)
 	srv.RemovePeer = make(chan p2p.Peer)
 	srv.ShardTransactions = make(chan dt.ShardTransactionCh)

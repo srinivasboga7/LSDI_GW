@@ -8,6 +8,7 @@ import (
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 	"time"
@@ -29,11 +30,31 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	copy(tx.From[:], Crypto.SerializePublicKey(&cli.PrivateKey.PublicKey))
 	// tip selection
 	// broadcast transaction
-
+	var nulltx [32]byte
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	fmt.Println(tx.LeftTip[:])
+	if bytes.Equal(tx.LeftTip[:], nulltx[:]) {
+		// cli.DAG.Mux.Lock()
+		// for k := range cli.DAG.Graph {
+		// 	if bytes.Equal(Crypto.DecodeToBytes(k), nulltx[:]) {
+		// 	fmt.Println(k)
+		// 	}
+		// }
+		// cli.DAG.Mux.Unlock()
+		panic("Null tip selected in client")
+	}
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
 	fmt.Println(tx.RightTip[:])
+	if bytes.Equal(tx.RightTip[:], nulltx[:]) {
+		// cli.DAG.Mux.Lock()
+		// for k := range cli.DAG.Graph {
+		// 	// if bytes.Equal(Crypto.DecodeToBytes(k), nulltx[:]) {
+		// 	fmt.Println(k)
+		// 	// }
+		// }
+		// cli.DAG.Mux.Unlock()
+		panic("Null tip selected in client")
+	}
 	pow.PoW(&tx, 3)
 	fmt.Println("After pow")
 	b := serialize.Encode32(tx)
