@@ -11,6 +11,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"log"
+	"net"
 	"time"
 )
 
@@ -73,13 +75,30 @@ func (cli *Client) IssueTransaction(hash []byte) {
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
 	// for i := 0; i < 100; i++ {
-	time.Sleep(30 * time.Second)
-	i := 0
-	for {
-		fmt.Println(i)
-		// time.Sleep(5 * time.Second)
-		hash := Crypto.Hash([]byte("Hello,World!"))
-		cli.IssueTransaction(hash[:])
-		i++
+	// time.Sleep(30 * time.Second)
+
+	if triggerServer() {
+		i := 0
+		for {
+			fmt.Println(i)
+			// time.Sleep(5 * time.Second)
+			hash := Crypto.Hash([]byte("Hello,World!"))
+			cli.IssueTransaction(hash[:])
+			i++
+		}
 	}
+}
+
+func triggerServer() bool {
+	listener, err := net.Listen("tcp", ":6666")
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn, err := listener.Accept()
+	buf := make([]byte, 1)
+	conn.Read(buf)
+	if buf[0] == 0x05 {
+		return true
+	}
+	return false
 }

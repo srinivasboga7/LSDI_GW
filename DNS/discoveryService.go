@@ -17,6 +17,7 @@ import (
 // used to sign the messages
 var (
 	PrivateKey Crypto.PrivateKey
+	totalNodes int
 )
 
 const (
@@ -65,6 +66,19 @@ func find(list []peerAddr, element peerAddr) bool {
 	return false
 }
 
+func triggerNodes(nodes []peerAddr) {
+
+	for _, node := range nodes {
+		conn, err := net.Dial("tcp", parseAddr(node.networkAddr)+":6666")
+		if err != nil {
+			log.Println(err)
+		}
+		buf := []byte{0x05}
+		conn.Write(buf)
+		conn.Close()
+	}
+}
+
 func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 	if GS {
 		nodes.GWNodes.mux.Lock()
@@ -80,6 +94,13 @@ func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 		if len(shard.Nodes) >= maxNodes {
 			go nodes.initiateSharding(shard)
 		}
+
+		// trigger signal to all nodes to generate transactions
+
+		if len(shard.Nodes) >= totalNodes {
+			go triggerNodes(shard.Nodes)
+		}
+
 		nodes.GWNodes.mux.Unlock()
 	} else {
 		nodes.SNNodes.mux.Lock()
@@ -117,13 +138,13 @@ func checkPong(b []byte) bool {
 
 func parseAddr(b []byte) string {
 	addr := strconv.Itoa(int(b[0])) + "." + strconv.Itoa(int(b[1])) + "."
-	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3])) + ":8060"
+	addr += strconv.Itoa(int(b[2])) + "." + strconv.Itoa(int(b[3]))
 	return addr
 }
 
 func sendShardSignal(nodes shardNodes) {
 	randNode := nodes.Nodes[rand.Intn(len(nodes.Nodes))]
-	conn, _ := net.Dial("tcp", parseAddr(randNode.networkAddr))
+	conn, _ := net.Dial("tcp", parseAddr(randNode.networkAddr)+":8060")
 	b := constructShardSignal()
 	hash := Crypto.Hash(b)
 	sign := Crypto.Sign(hash[:], PrivateKey)
@@ -277,6 +298,9 @@ func checkDB(nodes *liveNodes) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	port := os.Args[1]
+	// argument contains total number of nodes in the test network
+	totalNodes, _ = strconv.Atoi(os.Args[2])
+
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
 	var firstShard shardNodes
