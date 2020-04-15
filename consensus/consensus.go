@@ -67,7 +67,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func GetKeysValuesFromMap_int(mymap map[string]int) ([]string, []int) {
+func getKeysValuesFromMapInt(mymap map[string]int) ([]string, []int) {
 	//Get the keys and values from a given type of map seperately as slices
 	keys := make([]string, 0, len(mymap))
 	values := make([]int, 0, len(mymap))
@@ -89,17 +89,16 @@ func GetKeysValuesFromMap_float64(mymap map[string]float64) ([]string, []float64
 	return keys, values
 }
 
-func IsTip(Graph map[string]dt.Vertex, Transaction string) bool {
+func isTip(Graph map[string]dt.Vertex, Transaction string) bool {
 	//Checks if the Given transaction is a tip or not
 	if len(Graph[Transaction].Neighbours) < 2 {
 		//If the neighbours slice is empty then the tx is tip
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
-func GetFutureSet(Graph map[string]dt.Vertex, Transaction string) ([]string, int) {
+func getFutureSet(Graph map[string]dt.Vertex, Transaction string) ([]string, int) {
 	// BFS of the DAG to get the future set
 	var queue []string
 	queue = append(queue, Transaction)
@@ -119,10 +118,46 @@ func GetFutureSet(Graph map[string]dt.Vertex, Transaction string) ([]string, int
 	return queue, count
 }
 
+func calculateFutureSet(Graph map[string]dt.Vertex, currPoint string, FutureSet map[string]map[string]bool) {
+	futureset := make(map[string]bool)
+
+	neighbours := Graph[currPoint].Neighbours
+
+	futureset[currPoint] = true
+
+	if len(neighbours) == 0 {
+		FutureSet[currPoint] = futureset
+		return
+	}
+
+	for _, neighbour := range neighbours {
+		if _, ok := FutureSet[neighbour]; !ok {
+			calculateFutureSet(Graph, neighbour, FutureSet)
+		}
+		for n := range FutureSet[neighbour] {
+			futureset[n] = true
+		}
+	}
+	FutureSet[currPoint] = futureset
+}
+
+func calRating(Graph map[string]dt.Vertex, start string) map[string]int {
+
+	Rating := make(map[string]int)
+	FutureSet := make(map[string]map[string]bool)
+
+	calculateFutureSet(Graph, start, FutureSet)
+
+	for k, v := range FutureSet {
+		Rating[k] = len(v)
+	}
+	return Rating
+}
+
 // SelectSubgraph ...
 func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string {
 	//Returns the Subgraph transactions hashes as a slice
-	SelectedSubGraph, _ := GetFutureSet(Graph, LatestMilestone)
+	SelectedSubGraph, _ := getFutureSet(Graph, LatestMilestone)
 	// _,c2 := GetFutureSet_new(Ledger,LatestMilestone)
 	return SelectedSubGraph
 }
@@ -134,7 +169,7 @@ func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[str
 	fmt.Println(SubGraph)
 	Rating := make(map[string]int)
 	for _, transaction := range SubGraph {
-		_, LengthFutureSet := GetFutureSet(Graph, transaction)
+		_, LengthFutureSet := getFutureSet(Graph, transaction)
 		Rating[transaction] = LengthFutureSet + 1
 		//Rating is the length of the future set of the transaction + 1
 	}
@@ -142,28 +177,11 @@ func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[str
 	//Returns the Rating map of the hash to the integer value
 }
 
-// calRating calculates Rating in a DP fashion
-func calRating(Graph map[string]dt.Vertex, currPoint string, Rating map[string]int) {
-	neighbours := Graph[currPoint].Neighbours
-	total := 0
-	if len(neighbours) == 0 {
-		Rating[currPoint] = 1
-	} else {
-		for _, neighbour := range neighbours {
-			if _, ok := Rating[neighbour]; !ok {
-				calRating(Graph, neighbour, Rating)
-			}
-			total += Rating[neighbour]
-		}
-		Rating[currPoint] = total
-	}
-}
-
 // RatingtoWeights converts ratings to weights using alpha parameter
 func RatingtoWeights(Rating map[string]int, alpha float64) map[string]float64 {
 	// Gets the weights from the ratings incliding randomness from alpha value
 	Weights := make(map[string]float64)
-	_, Values := GetKeysValuesFromMap_int(Rating)
+	_, Values := getKeysValuesFromMapInt(Rating)
 	HighestRating := getMax(Values)
 	for Hash, Value := range Rating {
 		NormalisedRating := Value - HighestRating
@@ -188,7 +206,7 @@ func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, start
 	current := startingPoint
 	var rating int
 	for {
-		_, rating = GetFutureSet(Graph, current)
+		_, rating = getFutureSet(Graph, current)
 		if rating > Threshhold || current == Genisis {
 			break
 		}
@@ -222,7 +240,6 @@ func NextStep(Graph map[string]dt.Vertex, Transaction string, Weights map[string
 		values = append(values, Weights[neighbour])
 	}
 	RandNumber := generateRandomNumber(0, sum(values))
-	// RandNumber = RandNumber - 1
 	var NextTx string
 	for _, approver := range Graph[Transaction].Neighbours {
 		RandNumber = RandNumber - Weights[approver]
@@ -239,7 +256,7 @@ func NextStep(Graph map[string]dt.Vertex, Transaction string, Weights map[string
 func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Weights map[string]float64) string {
 	//Returns the tip when given a milestone transaction
 	CurrentTransaction := LatestMilestone
-	for !IsTip(Graph, CurrentTransaction) {
+	for !isTip(Graph, CurrentTransaction) {
 		NextTransaction := NextStep(Graph, CurrentTransaction, Weights)
 		CurrentTransaction = NextTransaction
 	}
@@ -284,8 +301,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	Tip := RandomWalk(Ledger.Graph, start, Weights)
 	// fmt.Println("3")
 	// if len(Ledger.Graph) > 20000 {
-	// 	allRatings := make(map[string]int)
-	// 	calRating(Ledger.Graph, Ledger.Genisis, allRatings)
+	// 	allRatings := CalculateRating(Ledger.Graph, Ledger.Genisis)
 	// 	snapshot.PruneDag(Ledger, allRatings, 2500)
 	// }
 	Ledger.Mux.Unlock()
