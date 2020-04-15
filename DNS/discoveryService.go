@@ -98,7 +98,7 @@ func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 		// trigger signal to all nodes to generate transactions
 
 		if len(shard.Nodes) >= totalNodes {
-			go triggerNodes(shard.Nodes)
+			go triggerNodes(shard.Nodes)x
 		}
 
 		nodes.GWNodes.mux.Unlock()

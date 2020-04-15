@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"time"
 	// "GO-DAG/dt"
 )
 
@@ -51,6 +52,7 @@ func EncodeToHex(data []byte) string {
 
 func generateRandomNumber(min float64, max float64) float64 {
 	//Generates a random number between given minimum and maximum values
+	rand.Seed(time.Now().UnixNano())
 	RandomNumber := rand.Float64()*(max-min) + min
 	return float64(RandomNumber)
 }
@@ -129,7 +131,7 @@ func SelectSubgraph(Graph map[string]dt.Vertex, LatestMilestone string) []string
 func CalculateRating(Graph map[string]dt.Vertex, LatestMilestone string) map[string]int {
 	//Calculetes the rating of all the transactions in the subgraph
 	SubGraph := SelectSubgraph(Graph, LatestMilestone)
-	//fmt.Println(SubGraph)
+	fmt.Println(SubGraph)
 	Rating := make(map[string]int)
 	for _, transaction := range SubGraph {
 		_, LengthFutureSet := GetFutureSet(Graph, transaction)
@@ -173,6 +175,7 @@ func RatingtoWeights(Rating map[string]int, alpha float64) map[string]float64 {
 
 // GetEntryPoint returns a tip from which we perform backtrack
 func GetEntryPoint(Tips []string) string {
+	rand.Seed(time.Now().UnixNano())
 	var EntryPoint string
 	var Perm []int
 	Perm = rand.Perm(len(Tips))
@@ -219,7 +222,7 @@ func NextStep(Graph map[string]dt.Vertex, Transaction string, Weights map[string
 		values = append(values, Weights[neighbour])
 	}
 	RandNumber := generateRandomNumber(0, sum(values))
-	RandNumber = RandNumber - 1
+	// RandNumber = RandNumber - 1
 	var NextTx string
 	for _, approver := range Graph[Transaction].Neighbours {
 		RandNumber = RandNumber - Weights[approver]
@@ -261,24 +264,24 @@ func GetAllTips(Graph map[string]dt.Vertex) []string {
 func GetTip(Ledger *dt.DAG, alpha float64) string {
 
 	// copy only the subgraph required for tip selection
-	fmt.Println("Waiting for lock")
+	// fmt.Println("Waiting for lock")
 	Ledger.Mux.Lock()
-	fmt.Println("Inside lock")
-	// start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
+	// fmt.Println("Inside lock")
+	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
 	// fmt.Println("1")
-	Tip := GetEntryPoint(GetAllTips(Ledger.Graph))
-	// graph := GetSubGraph(Ledger.Graph, start)
-
+	// Tip := GetEntryPoint(GetAllTips(Ledger.Graph))
+	graph := GetSubGraph(Ledger.Graph, start)
+	// fmt.Println(len(graph))
 	// perform tip selection on copy of the subgraph
 	// Rating := make(map[string]int)
 	// calRating(Ledger.Graph, start, Rating)
-	// Rating := CalculateRating(Ledger.Graph, start)
+	Rating := CalculateRating(graph, start)
 	// for _, v := range Rating {
 	// 	fmt.Println(v)
 	// }
-	fmt.Println("2")
-	// Weights := RatingtoWeights(Rating, alpha)
-	// Tip := RandomWalk(Ledger.Graph, start, Weights)
+	// fmt.Println("2")
+	Weights := RatingtoWeights(Rating, alpha)
+	Tip := RandomWalk(Ledger.Graph, start, Weights)
 	// fmt.Println("3")
 	// if len(Ledger.Graph) > 20000 {
 	// 	allRatings := make(map[string]int)
@@ -286,11 +289,11 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	// 	snapshot.PruneDag(Ledger, allRatings, 2500)
 	// }
 	Ledger.Mux.Unlock()
-	fmt.Println("RELEASED LOCK")
-	var zero [32]byte
-	if bytes.Compare(Crypto.DecodeToBytes(Tip), zero[:]) == 0 {
-		panic("Null tip selected")
-	}
+	// fmt.Println("RELEASED LOCK")
+	// var zero [32]byte
+	// if bytes.Compare(Crypto.DecodeToBytes(Tip), zero[:]) == 0 {
+	// panic("Null tip selected")
+	// }
 	return Tip
 }
 
