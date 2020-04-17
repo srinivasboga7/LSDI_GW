@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"time"
 	// "GO-DAG/dt"
 )
@@ -78,7 +80,7 @@ func getKeysValuesFromMapInt(mymap map[string]int) ([]string, []int) {
 	return keys, values
 }
 
-func GetKeysValuesFromMap_float64(mymap map[string]float64) ([]string, []float64) {
+func GetKeysValuesFromMapfloat64(mymap map[string]float64) ([]string, []float64) {
 	//Get the keys and values from a given type of map seperately as slices
 	keys := make([]string, 0, len(mymap)) //Map[string] float64
 	values := make([]float64, 0, len(mymap))
@@ -121,24 +123,30 @@ func getFutureSet(Graph map[string]dt.Vertex, Transaction string) ([]string, int
 func calculateFutureSet(Graph map[string]dt.Vertex, currPoint string, FutureSet map[string]map[string]bool) {
 	futureset := make(map[string]bool)
 
-	neighbours := Graph[currPoint].Neighbours
-
+	// neighbours := Graph[currPoint].Neighbours
 	futureset[currPoint] = true
 
-	if len(neighbours) == 0 {
+	if len(Graph[currPoint].Neighbours) == 0 {
 		FutureSet[currPoint] = futureset
 		return
 	}
 
-	for _, neighbour := range neighbours {
+	for _, neighbour := range Graph[currPoint].Neighbours {
 		if _, ok := FutureSet[neighbour]; !ok {
 			calculateFutureSet(Graph, neighbour, FutureSet)
 		}
 		for n := range FutureSet[neighbour] {
-			futureset[n] = true
+			if _, ook := futureset[n]; !ook {
+				futureset[n] = true
+			}
 		}
 	}
+
+	// fmt.Println(len(futureset))
 	FutureSet[currPoint] = futureset
+	futureset = nil
+	// make(map[string]bool)
+	return
 }
 
 func calRating(Graph map[string]dt.Vertex, start string) map[string]int {
@@ -204,47 +212,51 @@ func GetEntryPoint(Tips []string) string {
 // BackTrack returns a point whose cumilative weight is greater than threshold
 func BackTrack(Threshhold int, Graph map[string]dt.Vertex, Genisis string, startingPoint string) string {
 	current := startingPoint
-	var rating int
-	for {
-		_, rating = getFutureSet(Graph, current)
-		if rating > Threshhold || current == Genisis {
-			break
-		}
-		tx := Graph[current].Tx
-		if _, ok := Graph[EncodeToHex(tx.LeftTip[:])]; !ok {
-			break
-		}
-		current = EncodeToHex(tx.LeftTip[:])
-	}
-	// fmt.Println(current)
-	// for i := 0; i < 5; i++ {
-	// 	if current == Genisis {
+	// var rating int
+	// for {
+	// 	_, rating = getFutureSet(Graph, current)
+	// 	if rating > Threshhold || current == Genisis {
 	// 		break
 	// 	}
 	// 	tx := Graph[current].Tx
-
 	// 	if _, ok := Graph[EncodeToHex(tx.LeftTip[:])]; !ok {
 	// 		break
 	// 	}
 	// 	current = EncodeToHex(tx.LeftTip[:])
 	// }
 	// fmt.Println(current)
+	for i := 0; i < 5; i++ {
+		if current == Genisis {
+			break
+		}
+		tx := Graph[current].Tx
+
+		if _, ok := Graph[EncodeToHex(tx.LeftTip[:])]; !ok {
+			break
+		}
+		current = EncodeToHex(tx.LeftTip[:])
+	}
+	// fmt.Println(current)
 	return current
 }
 
 // NextStep returns the pointer to the next transaction in random walk
-func NextStep(Graph map[string]dt.Vertex, Transaction string, Weights map[string]float64) string {
+func NextStep(ratings map[string]int) string {
 	//Returns the hash of transaction of the next step to be taken in random walk
-	var values []float64
-	for _, neighbour := range Graph[Transaction].Neighbours {
-		values = append(values, Weights[neighbour])
+	var Sum float64
+	Weights := RatingtoWeights(ratings, 0.01)
+	for _, val := range Weights {
+		Sum += val
 	}
-	RandNumber := generateRandomNumber(0, sum(values))
+	RandNumber := generateRandomNumber(0, Sum)
+	// RandNumber := Sum / 2
+	// RandNumber = RandNumber - 1
 	var NextTx string
-	for _, approver := range Graph[Transaction].Neighbours {
-		RandNumber = RandNumber - Weights[approver]
+	// fmt.Println(Weights)
+	for approver := range Weights {
+		RandNumber -= Weights[approver]
 		//Next transaction is the one which makes the random number value to zero with its weight substracted
-		if RandNumber <= 0 {
+		if RandNumber <= 0.0 {
 			NextTx = approver
 			break
 		}
@@ -253,12 +265,24 @@ func NextStep(Graph map[string]dt.Vertex, Transaction string, Weights map[string
 }
 
 // RandomWalk is an Implementation of IOTA's MCMC algorithm
-func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Weights map[string]float64) string {
+func RandomWalk(Graph map[string]dt.Vertex, LatestMilestone string, Ratings map[string]int) string {
 	//Returns the tip when given a milestone transaction
 	CurrentTransaction := LatestMilestone
+	NeighboursRating := make(map[string]int)
 	for !isTip(Graph, CurrentTransaction) {
-		NextTransaction := NextStep(Graph, CurrentTransaction, Weights)
-		CurrentTransaction = NextTransaction
+		for _, id := range Graph[CurrentTransaction].Neighbours {
+			NeighboursRating[id] = Ratings[id]
+		}
+		CurrentTransaction = NextStep(NeighboursRating)
+		for k := range NeighboursRating {
+			delete(NeighboursRating, k)
+		}
+		// CurrentTransaction = NextTransaction
+	}
+	if len(Graph) >= 8000 {
+		file, _ := os.Create("temp/heap.txt")
+		pprof.WriteHeapProfile(file)
+		panic("done")
 	}
 	return CurrentTransaction
 }
@@ -283,22 +307,25 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	// copy only the subgraph required for tip selection
 	// fmt.Println("Waiting for lock")
 	Ledger.Mux.Lock()
+	// fmt.Println(len(Ledger.Graph))
 	// fmt.Println("Inside lock")
 	start := BackTrack(50, Ledger.Graph, Ledger.Genisis, GetEntryPoint(GetAllTips(Ledger.Graph)))
 	// fmt.Println("1")
-	// Tip := GetEntryPoint(GetAllTips(Ledger.Graph))
-	graph := GetSubGraph(Ledger.Graph, start)
+	// graph := GetSubGraph(Ledger.Graph, start)
 	// fmt.Println(len(graph))
 	// perform tip selection on copy of the subgraph
 	// Rating := make(map[string]int)
-	// calRating(Ledger.Graph, start, Rating)
-	Rating := CalculateRating(graph, start)
+	Rating := calRating(Ledger.Graph, start)
+	// Rating := CalculateRating(graph, start)
 	// for _, v := range Rating {
 	// 	fmt.Println(v)
 	// }
 	// fmt.Println("2")
-	Weights := RatingtoWeights(Rating, alpha)
-	Tip := RandomWalk(Ledger.Graph, start, Weights)
+	// Weights := RatingtoWeights(Rating, alpha)
+	Tip := RandomWalk(Ledger.Graph, start, Rating)
+	// fmt.Println(Tip)
+	// Tip = GetEntryPoint(GetAllTips(Ledger.Graph))
+
 	// fmt.Println("3")
 	// if len(Ledger.Graph) > 20000 {
 	// 	allRatings := CalculateRating(Ledger.Graph, Ledger.Genisis)
@@ -306,6 +333,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	// }
 	Ledger.Mux.Unlock()
 	// fmt.Println("RELEASED LOCK")
+	fmt.Println(Tip)
 	// var zero [32]byte
 	// if bytes.Compare(Crypto.DecodeToBytes(Tip), zero[:]) == 0 {
 	// panic("Null tip selected")

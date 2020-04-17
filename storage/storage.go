@@ -138,6 +138,7 @@ func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
 			}
 		}
 	}
+	// log.Println(len(orphanedTransactions))
 	mux.Lock()
 	delete(orphanedTransactions, h)
 	mux.Unlock()

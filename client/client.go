@@ -81,11 +81,16 @@ func (cli *Client) SimulateClient() {
 		i := 0
 		for {
 			fmt.Println(i)
-			// time.Sleep(5 * time.Second)
+			// time.Sleep(2 * time.Second)
 			hash := Crypto.Hash([]byte("Hello,World!"))
 			cli.IssueTransaction(hash[:])
 			i++
+			// if i == 500 {
+			// 	break
+			// }
 		}
+		// file, _ := os.Create("temp/heap.txt")
+		// pprof.WriteHeapProfile(file)
 	}
 }
 
