@@ -54,4 +54,5 @@ type DAG struct {
 	Mux     sync.Mutex
 	Genisis string
 	Graph   map[string]Vertex
+	Length  int
 }

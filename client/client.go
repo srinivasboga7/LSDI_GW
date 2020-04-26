@@ -9,7 +9,6 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -31,33 +30,11 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	copy(tx.From[:], Crypto.SerializePublicKey(&cli.PrivateKey.PublicKey))
 	// tip selection
 	// broadcast transaction
-	// var nulltx [32]byte
-	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
-	// fmt.Println(tx.LeftTip[:])
-	// if bytes.Equal(tx.LeftTip[:], nulltx[:]) {
-	// cli.DAG.Mux.Lock()
-	// for k := range cli.DAG.Graph {
-	// 	if bytes.Equal(Crypto.DecodeToBytes(k), nulltx[:]) {
-	// 	fmt.Println(k)
-	// 	}
-	// }
-	// cli.DAG.Mux.Unlock()
-	// panic("Null tip selected in client")
-	// }
-	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.01)))
-	// fmt.Println(tx.RightTip[:])
-	// if bytes.Equal(tx.RightTip[:], nulltx[:]) {
-	// cli.DAG.Mux.Lock()
-	// for k := range cli.DAG.Graph {
-	// 	// if bytes.Equal(Crypto.DecodeToBytes(k), nulltx[:]) {
-	// 	fmt.Println(k)
-	// 	// }
-	// }
-	// cli.DAG.Mux.Unlock()
-	// panic("Null tip selected in client")
-	// }
+
+	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.001)))
+	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.001)))
 	pow.PoW(&tx, 3)
-	fmt.Println("After pow")
+	// fmt.Println("After pow")
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
 	msg.ID = 32
@@ -66,31 +43,23 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	msg.Payload = append(b, sign...)
 	msg.LenPayload = uint32(len(msg.Payload))
 	cli.Send <- msg
-	fmt.Println("After send")
 	storage.AddTransaction(cli.DAG, tx, sign)
 	return
 }
 
 // SimulateClient issues fake transactions
 func (cli *Client) SimulateClient() {
-	// for i := 0; i < 100; i++ {
-	// time.Sleep(30 * time.Second)
 
 	if triggerServer() {
 		time.Sleep(5 * time.Second)
 		i := 0
 		for {
-			fmt.Println(i)
-			// time.Sleep(2 * time.Second)
+			// fmt.Println(i, "===============")
 			hash := Crypto.Hash([]byte("Hello,World!"))
 			cli.IssueTransaction(hash[:])
 			i++
-			// if i == 500 {
-			// 	break
-			// }
+			time.Sleep(100 * time.Millisecond)
 		}
-		// file, _ := os.Create("temp/heap.txt")
-		// pprof.WriteHeapProfile(file)
 	}
 }
 

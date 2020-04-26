@@ -84,6 +84,7 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 				}
 			} else {
 				dag.Graph[h] = node
+				dag.Length++
 				if left == right {
 					l.Neighbours = append(l.Neighbours, h)
 					dag.Graph[left] = l

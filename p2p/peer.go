@@ -18,7 +18,7 @@ const (
 
 const (
 	baseprotoLength = uint32(16)
-	pingMsgInterval = 1 * time.Second
+	pingMsgInterval = 10 * time.Second
 )
 
 // PeerID is a structure to identify each unique peer in the P2P network
@@ -116,10 +116,10 @@ func (p *Peer) pingLoop(e chan error) {
 
 func (p *Peer) handleMsg(msg Msg) error {
 	switch {
-	case msg.ID == pingMsg:
-		var pong Msg
-		pong.ID = pongMsg
-		SendMsg(p.rw, pong)
+	// case msg.ID == pingMsg:
+	// 	var pong Msg
+	// 	pong.ID = pongMsg
+	// 	SendMsg(p.rw, pong)
 	case msg.ID == discMsg:
 		// close the connection
 
