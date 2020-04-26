@@ -70,7 +70,8 @@ func EncodeToBytes(x interface{}) []byte {
 
 //Decode32 Converts back byte slice to transaction
 func Decode32(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
-	signature := payload[lenPayload-72:]
+	signature := make([]byte, 72)
+	copy(signature, payload[lenPayload-72:])
 	r := bytes.NewReader(payload[:lenPayload-72])
 	var tx dt.Transaction
 	err := binary.Read(r, binary.LittleEndian, &tx)
