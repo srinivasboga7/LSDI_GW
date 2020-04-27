@@ -58,7 +58,7 @@ func (cli *Client) SimulateClient() {
 			hash := Crypto.Hash([]byte("Hello,World!"))
 			cli.IssueTransaction(hash[:])
 			i++
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(400 * time.Millisecond)
 		}
 	}
 }

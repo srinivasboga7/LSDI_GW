@@ -24,11 +24,12 @@ func DecodeToBytes(data string) []byte {
 func Encode32(t dt.Transaction) []byte {
 	// iterating over a struct is painful in golang
 	var b []byte
-	v := reflect.ValueOf(&t).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		value := v.Field(i)
-		b = append(b, EncodeToBytes(value.Interface())...)
-	}
+	b = append(b, EncodeToBytes(t.Timestamp)...)
+	b = append(b, EncodeToBytes(t.Hash)...)
+	b = append(b, EncodeToBytes(t.From)...)
+	b = append(b, EncodeToBytes(t.LeftTip)...)
+	b = append(b, EncodeToBytes(t.RightTip)...)
+	b = append(b, EncodeToBytes(t.Nonce)...)
 	return b
 }
 
@@ -58,9 +59,6 @@ func Encode36(t dt.ShardTransaction) []byte {
 func EncodeToBytes(x interface{}) []byte {
 	// encode based on type as binary package doesn't support strings
 	switch x.(type) {
-	case string:
-		str := x.(string)
-		return []byte(str)
 	default:
 		buf := new(bytes.Buffer)
 		binary.Write(buf, binary.LittleEndian, x)

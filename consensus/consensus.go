@@ -2,8 +2,8 @@ package consensus
 
 import (
 	dt "GO-DAG/DataTypes"
-	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -154,15 +154,21 @@ func calRating(Graph map[string]dt.Vertex, start string) map[string]int {
 // CalculateAllRatings ...
 func CalculateAllRatings(Graph map[string]dt.Vertex) map[string]int {
 	Ratings := make(map[string]int)
-	var zero [32]byte
+	FutureSet := make(map[string]map[string]bool)
+	// var zero [32]byte
 	for h, vertex := range Graph {
-		if bytes.Compare(vertex.Tx.LeftTip[:], zero[:]) == 0 && bytes.Compare(vertex.Tx.RightTip[:], zero[:]) == 0 {
-			FutureSet := make(map[string]map[string]bool)
+		left := hex.EncodeToString(vertex.Tx.LeftTip[:])
+		right := hex.EncodeToString(vertex.Tx.RightTip[:])
+		_, okL := Graph[left]
+		_, okR := Graph[right]
+
+		if !okL && !okR {
 			calculateFutureSet(Graph, h, FutureSet)
 			for k, v := range FutureSet {
-				Ratings[k] = len(v)
+				if _, ok := Ratings[k]; !ok {
+					Ratings[k] = len(v)
+				}
 			}
-
 		}
 	}
 	return Ratings
@@ -295,7 +301,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	var Threshold int
 	Threshold = 1
 	Ledger.Mux.Lock()
-
+	fmt.Println(Ledger.Length)
 	if Ledger.Length > 1000 {
 		all := CalculateAllRatings(Ledger.Graph)
 		PruneDag(Ledger.Graph, all, 500)
@@ -306,6 +312,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	start := BackTrack(50, Ledger.Graph, GetEntryPoint(tips))
 	Tip := RandomWalk(Ledger.Graph, start, alpha, Threshold)
 	Ledger.Mux.Unlock()
+	fmt.Println(Tip)
 	return Tip
 }
 
@@ -326,12 +333,22 @@ func GetSubGraph(Graph map[string]dt.Vertex, Milestone string) map[string]dt.Ver
 
 // PruneDag prunes the Old Transactions to reduce memory overhead
 func PruneDag(Graph map[string]dt.Vertex, Ratings map[string]int, Threshold int) {
-
-	for k, v := range Graph {
+	// var zero [32]byte
+	for k := range Graph {
 		if Ratings[k] > Threshold {
-			for _, neighbour := range v.Neighbours {
-				clearTips(Graph[neighbour], k)
-			}
+			// for _, neighbour := range v.Neighbours {
+			// 	node := Graph[neighbour]
+			// 	l := Graph[neighbour].Tx.LeftTip
+			// 	if hex.EncodeToString(l[:]) == k {
+			// 		node.Tx.LeftTip = zero
+			// 		Graph[neighbour] = node
+			// 	}
+			// 	r := Graph[neighbour].Tx.RightTip
+			// 	if hex.EncodeToString(r[:]) == k {
+			// 		node.Tx.RightTip = zero
+			// 		Graph[neighbour] = node
+			// 	}
+			// }
 			delete(Graph, k)
 		}
 	}
@@ -339,7 +356,7 @@ func PruneDag(Graph map[string]dt.Vertex, Ratings map[string]int, Threshold int)
 	return
 }
 
-func clearTips(v dt.Vertex, tip string) {
+func clearTips(v *dt.Vertex, tip string) {
 	var t [32]byte
 	if hex.EncodeToString(v.Tx.LeftTip[:]) == tip {
 		v.Tx.LeftTip = t
