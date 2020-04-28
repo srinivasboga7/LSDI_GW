@@ -18,10 +18,7 @@ import (
 var (
 	PrivateKey Crypto.PrivateKey
 	totalNodes int
-)
-
-const (
-	maxNodes = 100
+	maxNodes   int
 )
 
 type peerAddr struct {
@@ -91,16 +88,16 @@ func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 		}
 		shard.Nodes = append(shard.Nodes, peer)
 		nodes.GWNodes.shards[i] = shard
+
+		if len(shard.Nodes) >= totalNodes {
+			go triggerNodes(shard.Nodes)
+		}
+
 		if len(shard.Nodes) >= maxNodes {
 			go nodes.initiateSharding(shard)
 		}
 
 		// trigger signal to all nodes to generate transactions
-
-		if len(shard.Nodes) >= totalNodes {
-			go triggerNodes(shard.Nodes)x
-		}
-
 		nodes.GWNodes.mux.Unlock()
 	} else {
 		nodes.SNNodes.mux.Lock()
@@ -300,6 +297,7 @@ func main() {
 	port := os.Args[1]
 	// argument contains total number of nodes in the test network
 	totalNodes, _ = strconv.Atoi(os.Args[2])
+	maxNodes, _ = strconv.Atoi(os.Args[3])
 
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
