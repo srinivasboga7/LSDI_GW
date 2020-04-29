@@ -174,7 +174,7 @@ func (nodes *liveNodes) updateShard(ShardID uint32, IP []byte, PubKey []byte) {
 }
 
 func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
-	time.Sleep(15 * time.Second)
+	time.Sleep(2 * time.Second)
 	sendShardSignal(prevShard)
 	nodes.GWNodes.mux.Lock()
 	for i, shard := range nodes.GWNodes.shards {
@@ -263,6 +263,28 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		binary.Read(r, binary.LittleEndian, &ShardID)
 		nodes.updateShard(ShardID, IP, PubKey)
 	} else {
+
+		var shardingInProgress bool
+
+		for {
+
+			nodes.GWNodes.mux.Lock()
+
+			for _, shard := range nodes.GWNodes.shards {
+				if len(shard.Nodes) == 0 && len(nodes.GWNodes.shards) > 1 {
+					shardingInProgress = true
+					break
+				}
+			}
+			nodes.GWNodes.mux.Unlock()
+
+			if !shardingInProgress {
+				break
+			}
+
+			time.Sleep(time.Second)
+
+		}
 		IP, PubKey, GS := deserialize(buffer[:l])
 		var newPeer peerAddr
 		if GS {
