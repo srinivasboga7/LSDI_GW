@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -16,9 +17,10 @@ import (
 
 // used to sign the messages
 var (
-	PrivateKey Crypto.PrivateKey
-	totalNodes int
-	maxNodes   int
+	PrivateKey    Crypto.PrivateKey
+	totalNodes    int
+	maxNodes      int
+	currNodeCount int
 )
 
 type peerAddr struct {
@@ -88,10 +90,6 @@ func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
 		}
 		shard.Nodes = append(shard.Nodes, peer)
 		nodes.GWNodes.shards[i] = shard
-
-		if len(shard.Nodes) >= totalNodes {
-			go triggerNodes(shard.Nodes)
-		}
 
 		if len(shard.Nodes) >= maxNodes {
 			go nodes.initiateSharding(shard)
@@ -164,9 +162,11 @@ func (nodes *liveNodes) updateShard(ShardID uint32, IP []byte, PubKey []byte) {
 	peer.networkAddr = IP
 	peer.PublicKey = PubKey
 	peer.ShardID = ShardID
-	for _, shard := range nodes.GWNodes.shards {
+	for i, shard := range nodes.GWNodes.shards {
 		if ShardID == shard.ShardID {
+			fmt.Println("shardID updated")
 			shard.Nodes = append(shard.Nodes, peer)
+			nodes.GWNodes.shards[i] = shard
 			break
 		}
 	}
@@ -181,7 +181,7 @@ func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
 		if prevShard.ShardID == shard.ShardID {
 			// deleting the old shard
 			nodes.GWNodes.shards[i] = nodes.GWNodes.shards[len(nodes.GWNodes.shards)-1]
-			nodes.GWNodes.shards = nodes.GWNodes.shards[:len(nodes.GWNodes.shards)-1]
+			nodes.GWNodes.shards = nodes.GWNodes.shards[:(len(nodes.GWNodes.shards) - 1)]
 			break
 		}
 	}
@@ -190,6 +190,7 @@ func (nodes *liveNodes) initiateSharding(prevShard shardNodes) {
 	nextShard1.ShardID = prevShard.ShardID * (10)
 	nextShard2.ShardID = prevShard.ShardID*(10) + 1
 	nodes.GWNodes.shards = append(nodes.GWNodes.shards, nextShard1, nextShard2)
+	fmt.Println(len(nodes.GWNodes.shards))
 	nodes.GWNodes.mux.Unlock()
 }
 
@@ -259,14 +260,16 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		IP, PubKey, ShardIDBytes := buffer[1:5], buffer[5:70], buffer[70:l]
 		r := bytes.NewReader(ShardIDBytes)
 		var ShardID uint32
-		binary.Read(r, binary.LittleEndian, ShardID)
+		binary.Read(r, binary.LittleEndian, &ShardID)
 		nodes.updateShard(ShardID, IP, PubKey)
 	} else {
 		IP, PubKey, GS := deserialize(buffer[:l])
 		var newPeer peerAddr
 		if GS {
+			currNodeCount++
 			x := rand.Intn(len(nodes.GWNodes.shards))
 			newPeer.ShardID = nodes.GWNodes.shards[x].ShardID
+			fmt.Println(newPeer.ShardID)
 		} else {
 			newPeer.ShardID = 0
 		}
@@ -282,6 +285,15 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		b, _ := json.Marshal(p)
 		conn.Write(b)
 		nodes.appendTo(newPeer, GS)
+
+		if currNodeCount >= totalNodes {
+			time.Sleep(30 * time.Second)
+			nodes.GWNodes.mux.Lock()
+			for _, shard := range nodes.GWNodes.shards {
+				go triggerNodes(shard.Nodes)
+			}
+			nodes.GWNodes.mux.Unlock()
+		}
 	}
 	return
 }
