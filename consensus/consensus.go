@@ -3,7 +3,6 @@ package consensus
 import (
 	dt "GO-DAG/DataTypes"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -301,7 +300,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	var Threshold int
 	Threshold = 1
 	Ledger.Mux.Lock()
-	fmt.Println(Ledger.Length)
+	// fmt.Println(Ledger.Length)
 	if Ledger.Length > 1000 {
 		all := CalculateAllRatings(Ledger.Graph)
 		PruneDag(Ledger.Graph, all, 500)
@@ -312,7 +311,7 @@ func GetTip(Ledger *dt.DAG, alpha float64) string {
 	start := BackTrack(50, Ledger.Graph, GetEntryPoint(tips))
 	Tip := RandomWalk(Ledger.Graph, start, alpha, Threshold)
 	Ledger.Mux.Unlock()
-	fmt.Println(Tip)
+	// fmt.Println(Tip)
 	return Tip
 }
 

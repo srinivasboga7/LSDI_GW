@@ -47,6 +47,11 @@ type Peer struct {
 	closed chan struct{}
 }
 
+// GetPeerConn returns the peer socket
+func (p *Peer) GetPeerConn() net.Conn {
+	return p.rw
+}
+
 func newPeer(c net.Conn, pID PeerID) *Peer {
 	peer := Peer{
 		ID:     pID,

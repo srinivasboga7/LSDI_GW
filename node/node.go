@@ -5,7 +5,6 @@ import (
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
-	"GO-DAG/storage"
 	"log"
 )
 
@@ -42,31 +41,37 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		// log.Println(hex.EncodeToString(tx.LeftTip[:]))
 		if validTransaction(msg.Payload, tx.From[:]) {
-			tr := storage.AddTransaction(dag, tx, sign)
-			if tr == 1 {
-				send <- msg
-				// logLock.Lock()
-				// f.WriteString(fmt.Sprintf("%d %d %d\n", p.ID.IP, time.Now().Minute(), time.Now().Second()))
-				// logLock.Unlock()
-				// fmt.Println(time.Now())
-			} else if tr == 2 {
-				var msg p2p.Msg
-				msg.ID = 34
-				left := serialize.EncodeToHex(tx.LeftTip[:])
-				right := serialize.EncodeToHex(tx.RightTip[:])
-				dag.Mux.Lock()
-				if _, t1 := dag.Graph[left]; !t1 {
-					msg.Payload = tx.LeftTip[:]
-					msg.LenPayload = uint32(len(msg.Payload))
-					p.Send(msg)
-				}
-				if _, t2 := dag.Graph[right]; !t2 {
-					msg.Payload = tx.RightTip[:]
-					msg.LenPayload = uint32(len(msg.Payload))
-					p.Send(msg)
-				}
-				dag.Mux.Unlock()
-			}
+			// tr := storage.AddTransaction(dag, tx, sign)
+			// if tr == 1 {
+			// 	send <- msg
+			// 	// logLock.Lock()
+			// 	// f.WriteString(fmt.Sprintf("%d %d %d\n", p.ID.IP, time.Now().Minute(), time.Now().Second()))
+			// 	// logLock.Unlock()
+			// 	// fmt.Println(time.Now())
+			// } else if tr == 2 {
+			// 	var msg p2p.Msg
+			// 	msg.ID = 34
+			// 	left := serialize.EncodeToHex(tx.LeftTip[:])
+			// 	right := serialize.EncodeToHex(tx.RightTip[:])
+			// 	dag.Mux.Lock()
+			// 	if _, t1 := dag.Graph[left]; !t1 {
+			// 		msg.Payload = tx.LeftTip[:]
+			// 		msg.LenPayload = uint32(len(msg.Payload))
+			// 		p.Send(msg)
+			// 	}
+			// 	if _, t2 := dag.Graph[right]; !t2 {
+			// 		msg.Payload = tx.RightTip[:]
+			// 		msg.LenPayload = uint32(len(msg.Payload))
+			// 		p.Send(msg)
+			// 	}
+			// 	dag.Mux.Unlock()
+			// }
+			var sTx dt.ForwardTx
+			sTx.Tx = tx
+			sTx.Signature = sign
+			sTx.Peer = p.GetPeerConn()
+			sTx.Forward = true
+			dag.StorageCh <- sTx
 		}
 	} else if msg.ID == 34 {
 		// request for transaction
@@ -86,25 +91,31 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	} else if msg.ID == 33 {
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		if validTransaction(msg.Payload, tx.From[:]) {
-			tr := storage.AddTransaction(dag, tx, sign)
-			if tr == 2 {
-				var msg p2p.Msg
-				msg.ID = 34
-				left := serialize.EncodeToHex(tx.LeftTip[:])
-				right := serialize.EncodeToHex(tx.RightTip[:])
-				dag.Mux.Lock()
-				if _, t1 := dag.Graph[left]; !t1 {
-					msg.Payload = tx.LeftTip[:]
-					msg.LenPayload = uint32(len(msg.Payload))
-					p.Send(msg)
-				}
-				if _, t2 := dag.Graph[right]; !t2 {
-					msg.Payload = tx.RightTip[:]
-					msg.LenPayload = uint32(len(msg.Payload))
-					p.Send(msg)
-				}
-				dag.Mux.Unlock()
-			}
+			// tr := storage.AddTransaction(dag, tx, sign)
+			// if tr == 2 {
+			// 	var msg p2p.Msg
+			// 	msg.ID = 34
+			// 	left := serialize.EncodeToHex(tx.LeftTip[:])
+			// 	right := serialize.EncodeToHex(tx.RightTip[:])
+			// 	dag.Mux.Lock()
+			// 	if _, t1 := dag.Graph[left]; !t1 {
+			// 		msg.Payload = tx.LeftTip[:]
+			// 		msg.LenPayload = uint32(len(msg.Payload))
+			// 		p.Send(msg)
+			// 	}
+			// 	if _, t2 := dag.Graph[right]; !t2 {
+			// 		msg.Payload = tx.RightTip[:]
+			// 		msg.LenPayload = uint32(len(msg.Payload))
+			// 		p.Send(msg)
+			// 	}
+			// 	dag.Mux.Unlock()
+			// }
+			var sTx dt.ForwardTx
+			sTx.Tx = tx
+			sTx.Signature = sign
+			sTx.Peer = p.GetPeerConn()
+			dag.StorageCh <- sTx
+
 		}
 	} else if msg.ID == 35 { //Shard signal
 		signal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
@@ -144,6 +155,7 @@ func validTransaction(msg []byte, PublicKey []byte) bool {
 	sign := msg[len(msg)-72:]
 	h := Crypto.Hash(sTx)
 	return Crypto.Verify(sign, Crypto.DeserializePublicKey(PublicKey), h[:])
+	// return true
 }
 
 func getAllKeys(dag *dt.DAG) []string {

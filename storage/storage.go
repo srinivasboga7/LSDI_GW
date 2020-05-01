@@ -3,6 +3,7 @@ package storage
 import (
 	dt "GO-DAG/DataTypes"
 	db "GO-DAG/database"
+	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"bytes"
 	"crypto/sha256"
@@ -13,6 +14,13 @@ import (
 
 var orphanedTransactions = make(map[string][]dt.Vertex)
 var mux sync.Mutex
+
+// Server ...
+type Server struct {
+	ForwardingCh chan p2p.Msg
+	ServerCh     chan dt.ForwardTx
+	DAG          *dt.DAG
+}
 
 //Hash returns the SHA256 hash value
 func Hash(b []byte) []byte {
@@ -29,7 +37,6 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 	s := serialize.Encode32(tx)
 	Txid := Hash(s)
 	h := serialize.EncodeToHex(Txid[:])
-	s = append(s, signature...)
 	dag.Mux.Lock()
 	if _, ok := dag.Graph[h]; !ok { //Duplication check
 		node.Tx = tx
@@ -101,7 +108,7 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 	}
 	dag.Mux.Unlock()
 	if duplicationCheck == 1 {
-		checkorphanedTransactions(h, dag, s)
+		checkorphanedTransactions(h, dag)
 	}
 	return duplicationCheck
 }
@@ -126,7 +133,7 @@ func GetAllHashes() [][]byte {
 }
 
 //checkorphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
-func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
+func checkorphanedTransactions(h string, dag *dt.DAG) {
 
 	mux.Lock()
 	list, ok := orphanedTransactions[h]
@@ -144,4 +151,58 @@ func checkorphanedTransactions(h string, dag *dt.DAG, serializedTx []byte) {
 	delete(orphanedTransactions, h)
 	mux.Unlock()
 	return
+}
+
+// Run ...
+func (srv *Server) Run() {
+	for {
+		node := <-srv.ServerCh
+		if node.Forward {
+			dup := AddTransaction(srv.DAG, node.Tx, node.Signature)
+			if dup == 1 {
+				var msg p2p.Msg
+				msg.ID = 32
+				msg.Payload = append(serialize.Encode32(node.Tx), node.Signature...)
+				msg.LenPayload = uint32(len(msg.Payload))
+				srv.ForwardingCh <- msg
+			} else if dup == 2 {
+				var msg p2p.Msg
+				msg.ID = 34
+				left := serialize.EncodeToHex(node.Tx.LeftTip[:])
+				right := serialize.EncodeToHex(node.Tx.RightTip[:])
+				srv.DAG.Mux.Lock()
+				if _, t1 := srv.DAG.Graph[left]; !t1 {
+					msg.Payload = node.Tx.LeftTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(node.Peer, msg)
+				}
+				if _, t2 := srv.DAG.Graph[right]; !t2 {
+					msg.Payload = node.Tx.RightTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(node.Peer, msg)
+				}
+				srv.DAG.Mux.Unlock()
+			}
+		} else {
+			dup := AddTransaction(srv.DAG, node.Tx, node.Signature)
+			if dup == 2 {
+				var msg p2p.Msg
+				msg.ID = 34
+				left := serialize.EncodeToHex(node.Tx.LeftTip[:])
+				right := serialize.EncodeToHex(node.Tx.RightTip[:])
+				srv.DAG.Mux.Lock()
+				if _, t1 := srv.DAG.Graph[left]; !t1 {
+					msg.Payload = node.Tx.LeftTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(node.Peer, msg)
+				}
+				if _, t2 := srv.DAG.Graph[right]; !t2 {
+					msg.Payload = node.Tx.RightTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(node.Peer, msg)
+				}
+				srv.DAG.Mux.Unlock()
+			}
+		}
+	}
 }

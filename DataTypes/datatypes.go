@@ -31,6 +31,14 @@ type ShardTransaction struct {
 	Nonce      uint32
 }
 
+// ForwardTx ...
+type ForwardTx struct {
+	Tx        Transaction
+	Signature []byte
+	Peer      net.Conn
+	Forward   bool
+}
+
 type ShardTransactionCh struct {
 	Tx   ShardTransaction
 	Sign []byte
@@ -51,8 +59,9 @@ type Vertex struct {
 
 // DAG defines the data structure to store the blockchain
 type DAG struct {
-	Mux     sync.Mutex
-	Genisis string
-	Graph   map[string]Vertex
-	Length  int
+	Mux       sync.Mutex
+	Genisis   string
+	Graph     map[string]Vertex
+	Length    int
+	StorageCh chan ForwardTx
 }

@@ -265,18 +265,20 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 	} else {
 
 		var shardingInProgress bool
+		shardingInProgress = false
 
 		for {
 
-			nodes.GWNodes.mux.Lock()
+			nodes.GWNodes.mux.RLock()
+			l = len(nodes.GWNodes.shards)
 
 			for _, shard := range nodes.GWNodes.shards {
-				if len(shard.Nodes) == 0 && len(nodes.GWNodes.shards) > 1 {
+				if len(shard.Nodes) == 0 && l > 1 {
 					shardingInProgress = true
 					break
 				}
 			}
-			nodes.GWNodes.mux.Unlock()
+			nodes.GWNodes.mux.RUnlock()
 
 			if !shardingInProgress {
 				break

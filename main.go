@@ -7,6 +7,7 @@ import (
 	"GO-DAG/node"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
+	"GO-DAG/storage"
 	"math/rand"
 	"sync"
 	"time"
@@ -29,7 +30,15 @@ func main() {
 	dag.Graph = make(map[string]dt.Vertex)
 	dag.Graph[Crypto.EncodeToHex(genisisHash[:])] = v
 	var ch chan p2p.Msg
+	storageCh := make(chan dt.ForwardTx, 20)
+	dag.StorageCh = storageCh
 	ch = node.New(&ID, &dag, PrivateKey)
+	// initializing the storage layer
+	var st storage.Server
+	st.DAG = &dag
+	st.ForwardingCh = ch
+	st.ServerCh = storageCh
+	go st.Run()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	var cli client.Client
