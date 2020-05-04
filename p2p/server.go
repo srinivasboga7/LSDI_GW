@@ -290,7 +290,7 @@ func (srv *Server) Run() {
 						l++
 					}
 				}
-				if l > 0 {
+				if l > 1 {
 					break
 				}
 				time.Sleep(time.Second)
@@ -299,6 +299,7 @@ func (srv *Server) Run() {
 			// connect with these peers with same shardNo
 			// check if the routing reaches storage node or some other mechanism
 			time.Sleep(time.Second)
+			i := 0
 
 			for _, pID := range shPeers {
 
@@ -314,12 +315,17 @@ func (srv *Server) Run() {
 						p := newPeer(conn, pID)
 						srv.AddPeer(p)
 						srv.NewPeer <- *p
+						i++
 					}
+				}
+
+				if i > 2 {
+					break
 				}
 			}
 			// send the discovery server appropriate information
 			updateShardID(srv.HostID)
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 			srv.discOldPeers()
 			log.Println("sharding complete")
 			var emptySlice []PeerID
@@ -379,9 +385,6 @@ func Send(msg Msg, peers []Peer) {
 		if !p.ID.Equals(msg.Sender) {
 			SendMsg(p.rw, msg)
 			i++
-		}
-		if i > 3 {
-			break
 		}
 	}
 }
