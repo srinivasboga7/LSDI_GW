@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"log"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -372,10 +373,15 @@ func (srv *Server) Run() {
 // Send ...
 func Send(msg Msg, peers []Peer) {
 	i := 0
-	for _, p := range peers {
+	perm := rand.Perm(len(peers))
+	for _, j := range perm {
+		p := peers[j]
 		if !p.ID.Equals(msg.Sender) {
 			SendMsg(p.rw, msg)
 			i++
+		}
+		if i > 3 {
+			break
 		}
 	}
 }
