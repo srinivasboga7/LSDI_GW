@@ -325,7 +325,7 @@ func (srv *Server) Run() {
 			}
 			// send the discovery server appropriate information
 			updateShardID(srv.HostID)
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 			srv.discOldPeers()
 			log.Println("sharding complete")
 			var emptySlice []PeerID
