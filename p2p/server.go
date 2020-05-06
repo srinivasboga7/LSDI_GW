@@ -290,7 +290,7 @@ func (srv *Server) Run() {
 						l++
 					}
 				}
-				if l > 1 {
+				if l > 0 {
 					break
 				}
 				time.Sleep(time.Second)
