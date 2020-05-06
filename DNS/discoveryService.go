@@ -261,7 +261,11 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		r := bytes.NewReader(ShardIDBytes)
 		var ShardID uint32
 		binary.Read(r, binary.LittleEndian, &ShardID)
-		nodes.updateShard(ShardID, IP, PubKey)
+		var newPeer peerAddr
+		newPeer.PublicKey = PubKey
+		newPeer.networkAddr = IP
+		newPeer.ShardID = ShardID
+		nodes.appendTo(newPeer, true)
 	} else {
 		IP, PubKey, GS := deserialize(buffer[:l])
 		var newPeer peerAddr
