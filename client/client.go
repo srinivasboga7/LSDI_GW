@@ -9,9 +9,11 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"time"
 )
 
@@ -24,7 +26,7 @@ type Client struct {
 }
 
 // IssueTransaction ...
-func (cli *Client) IssueTransaction(hash []byte) {
+func (cli *Client) IssueTransaction(hash []byte) []byte {
 	var tx dt.Transaction
 	copy(tx.Hash[:], hash[:])
 	tx.Timestamp = time.Now().UnixNano()
@@ -45,7 +47,7 @@ func (cli *Client) IssueTransaction(hash []byte) {
 	msg.LenPayload = uint32(len(msg.Payload))
 	cli.Send <- msg
 	storage.AddTransaction(cli.DAG, tx, sign)
-	return
+	return h[:]
 }
 
 // SimulateClient issues fake transactions
@@ -76,4 +78,36 @@ func triggerServer() bool {
 		return true
 	}
 	return false
+}
+
+type query struct {
+	hash [32]byte
+}
+
+// RunAPI implements RESTAPI
+func (cli *Client) RunAPI() {
+
+	http.HandleFunc("api", func(w http.ResponseWriter, r *http.Request) {
+
+		// parse the post Request
+		// get the hash value
+		// generate a transaction
+		// respond with TxID
+
+		var q query
+		err := json.NewDecoder(r.Body).Decode(&q)
+		if err != nil {
+			log.Println(err)
+			// respond with bad request
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		TxID := cli.IssueTransaction(q.hash[:])
+		w.WriteHeader(http.StatusOK)
+		// may be wrap it in a json object
+		w.Write(TxID)
+		return
+	})
+
+	http.ListenAndServe(":8989", nil)
 }
