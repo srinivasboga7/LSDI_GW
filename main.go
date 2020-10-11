@@ -25,6 +25,7 @@ func main() {
 	var ID p2p.PeerID
 	ID.PublicKey = Crypto.SerializePublicKey(&PrivateKey.PublicKey)
 	var dag dt.DAG
+	var netGraph dt.prefixGraph
 	v := constructGenisis()
 	genisisHash := Crypto.Hash(serialize.Encode32(v.Tx))
 	dag.Graph = make(map[string]dt.Vertex)
@@ -32,10 +33,11 @@ func main() {
 	var ch chan p2p.Msg
 	storageCh := make(chan dt.ForwardTx, 20)
 	dag.StorageCh = storageCh
-	ch = node.New(&ID, &dag, PrivateKey)
+	ch = node.New(&ID, &dag, &netGraph, PrivateKey)
 	// initializing the storage layer
 	var st storage.Server
 	st.DAG = &dag
+	st.NET = &netGraph
 	st.ForwardingCh = ch
 	st.ServerCh = storageCh
 	go st.Run()

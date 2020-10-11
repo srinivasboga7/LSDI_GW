@@ -7,6 +7,7 @@ import (
 	"GO-DAG/serialize"
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"log"
 	"sync"
 	// "net"
@@ -20,6 +21,7 @@ type Server struct {
 	ForwardingCh chan p2p.Msg
 	ServerCh     chan dt.ForwardTx
 	DAG          *dt.DAG
+	NET          *dt.prefixGraph
 }
 
 //Hash returns the SHA256 hash value
@@ -29,7 +31,7 @@ func Hash(b []byte) []byte {
 }
 
 //AddTransaction checks if transaction if already present in the dag, if not adds to dag and database and returns true else returns false
-func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
+func AddTransaction(dag *dt.DAG, netGraph *dt.prefixGraph, tx dt.Transaction, signature []byte) int {
 	// change this function for the storage node
 	var node dt.Vertex
 	var duplicationCheck int
@@ -90,18 +92,59 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 					duplicationCheck = 2
 				}
 			} else {
-				dag.Graph[h] = node
-				dag.Length++
-				if left == right {
-					l.Neighbours = append(l.Neighbours, h)
-					dag.Graph[left] = l
-				} else {
-					l.Neighbours = append(l.Neighbours, h)
-					dag.Graph[left] = l
-					r.Neighbours = append(r.Neighbours, h)
-					dag.Graph[right] = r
+				var validity bool = false
+				var bgpM dt.BGPMssgHolder
+				var txType int32
+				txType = tx.TxType
+				bgpM = tx.Msg
+				if txType == 1 { //Allocate
+					netGraph.Mux.Lock()
+					for i, p := range bgpM.Prefixes {
+						var asNode dt.ASNode
+						asNode.ASno = bgpM.Destination[0]
+						netGraph.Graph[p] = asNode
+						netGraph.Length++
+					}
+					netGraph.Mux.Unlock()
+					validity = true
+				} else if txType == 2 { //Revoke
+					netGraph.Mux.Lock()
+					for i, p := range bgpM.Prefixes {
+						delete(netGraph.Graph, p)
+						netGraph.Length--
+					}
+					netGraph.Mux.Unlock()
+					validity = true
+				} else if txType == 3 { //Update
+					// Not recording start dates and end dates currently in the graph
+					continue
+				} else if txType == 4 { //Path Announce
+					prefix := bgpM.Prefixes[0]
+					netGraph.Mux.Lock()
+					idx := -1
+					if netGraph.Graph[prefix].ASno == bgpM.Source {
+						validity = true
+						append(netGraph.Graph[prefix].Connections, bgpM.Destination[0]) //Only one destination per transaction
+					}
+				} else if txType == 5 { //Path withdraw
+					continue
 				}
-				duplicationCheck = 1
+				if validity {
+					dag.Graph[h] = node
+					dag.Length++
+					if left == right {
+						l.Neighbours = append(l.Neighbours, h)
+						dag.Graph[left] = l
+					} else {
+						l.Neighbours = append(l.Neighbours, h)
+						dag.Graph[left] = l
+						r.Neighbours = append(r.Neighbours, h)
+						dag.Graph[right] = r
+					}
+					duplicationCheck = 1
+				} else {
+					duplicationCheck = 3
+				}
 				// db.AddToDb(Txid, s)
 			}
 		}
@@ -158,7 +201,7 @@ func (srv *Server) Run() {
 	for {
 		node := <-srv.ServerCh
 		if node.Forward {
-			dup := AddTransaction(srv.DAG, node.Tx, node.Signature)
+			dup := AddTransaction(srv.DAG, srv.NET, node.Tx, node.Signature)
 			if dup == 1 {
 				var msg p2p.Msg
 				msg.ID = 32
@@ -182,9 +225,11 @@ func (srv *Server) Run() {
 					p2p.SendMsg(node.Peer, msg)
 				}
 				srv.DAG.Mux.Unlock()
+			} else if dup == 3 {
+				fmt.Println("Transaction Invalidated due to history")
 			}
 		} else {
-			dup := AddTransaction(srv.DAG, node.Tx, node.Signature)
+			dup := AddTransaction(srv.DAG, srv.NET, node.Tx, node.Signature)
 			if dup == 2 {
 				var msg p2p.Msg
 				msg.ID = 34
