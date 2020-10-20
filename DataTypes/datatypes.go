@@ -29,8 +29,32 @@ type BGPMssgHolder struct {
 // PathAnnounceMsg carries the required BGP msg data for verification
 type PathAnnounceMsg struct {
 	Prefix        string
+	Path          []int32
+	DestinationAS int32
+	ReferenceTX   [32]byte
+}
+
+// PathWithdrawMsg carries the required BGP msg data for verification
+type PathWithdrawMsg struct {
+	Prefix        string
 	SourceAS      int32
-	DestinationAS []int32
+	DestinationAS int32
+	ReferenceTX   [32]byte
+}
+
+// AllocateMsg carries the required BGP msg data for verification
+type AllocateMsg struct {
+	Prefix        string
+	Source        int32
+	DestinationAS int32
+	ReferenceTX   [32]byte
+}
+
+// RevokeMsg carries the required BGP msg data for verification
+type RevokeMsg struct {
+	Prefix        string
+	Source        int32
+	DestinationAS int32
 	ReferenceTX   [32]byte
 }
 
@@ -39,13 +63,13 @@ type ASNode struct {
 	ASno        int32
 	PuK         [65]byte //Public key of the AS blockchain node
 	IP          [4]int32
-	Connections []int32 //hash of the ASNode struct of peers
+	Connections map[int32][]int32 //adjacency list representing the paths this prefix propogated
 }
 
 // PrefixGraph is the graph representing the network structure of the
 type PrefixGraph struct {
 	Mux    sync.Mutex
-	Graph  map[string]ASNode // ASno maps to the ASnode
+	Graph  map[string]ASNode // Prefix string maps to its details
 	Length int
 }
 

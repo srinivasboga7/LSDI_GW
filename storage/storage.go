@@ -93,41 +93,77 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 				}
 			} else {
 				var validity bool = false
-				var bgpM dt.BGPMssgHolder
-				var txType int32
+				// var bgpM dt.BGPMssgHolder
+				var txType uint32
 				txType = tx.TxType
-				bgpM = tx.Msg
+				// bgpM = tx.Msg
 				if txType == 1 { //Allocate
+					var bgpM dt.AllocateMsg
+					prefix := bgpM.Prefix
+					var asNode dt.ASNode
+					asNode.ASno = bgpM.DestinationAS
+					asNode.Connections = make(map[int32][]int32)
 					netGraph.Mux.Lock()
-					for i, p := range bgpM.Prefixes {
-						var asNode dt.ASNode
-						asNode.ASno = bgpM.Destination[0]
-						netGraph.Graph[p] = asNode
-						netGraph.Length++
-					}
+					netGraph.Graph[prefix] = asNode
+					netGraph.Length++
 					netGraph.Mux.Unlock()
 					validity = true
 				} else if txType == 2 { //Revoke
+					var bgpM dt.RevokeMsg
+					prefix := bgpM.Prefix
 					netGraph.Mux.Lock()
-					for i, p := range bgpM.Prefixes {
-						delete(netGraph.Graph, p)
-						netGraph.Length--
-					}
+					delete(netGraph.Graph, prefix)
 					netGraph.Mux.Unlock()
 					validity = true
 				} else if txType == 3 { //Update
 					// Not recording start dates and end dates currently in the graph
-					continue
+					validity = true
 				} else if txType == 4 { //Path Announce
-					prefix := bgpM.Prefixes[0]
+					var bgpM dt.PathAnnounceMsg
+					prefix := bgpM.Prefix
 					netGraph.Mux.Lock()
-					idx := -1
-					if netGraph.Graph[prefix].ASno == bgpM.Source {
-						validity = true
-						append(netGraph.Graph[prefix].Connections, bgpM.Destination[0]) //Only one destination per transaction
+					found := 0
+					if bgpM.Path[0] == netGraph.Graph[prefix].ASno {
+						for i, prev := range bgpM.Path {
+							found = 0
+							if i == 0 {
+								found = 1
+							} else {
+								for _, next := range netGraph.Graph[prefix].Connections[bgpM.Path[i-1]] {
+									if prev == next {
+										found = 1
+										break
+									}
+								}
+								if found == 0 {
+									break
+								}
+							}
+						}
+						if found == 1 {
+							l := len(bgpM.Path) - 1
+							netGraph.Graph[prefix].Connections[bgpM.Path[l]] = append(netGraph.Graph[prefix].Connections[bgpM.Path[l]], bgpM.DestinationAS)
+							// netGraph.Graph[prefix].Connections[bgpM.DestinationAS] = make([]int32)
+							validity = true
+						}
 					}
+					netGraph.Mux.Unlock()
 				} else if txType == 5 { //Path withdraw
-					continue
+					var bgpM dt.PathWithdrawMsg
+					prefix := bgpM.Prefix
+					netGraph.Mux.Lock()
+					if conns, ok := netGraph.Graph[prefix].Connections[bgpM.SourceAS]; ok {
+						for i, p := range conns {
+							if p == bgpM.DestinationAS {
+								conns[i] = conns[len(conns)-1]
+								conns = conns[:len(conns)-1]
+								netGraph.Graph[prefix].Connections[bgpM.SourceAS] = conns
+								validity = true
+								break
+							}
+						}
+					}
+					netGraph.Mux.Lock()
 				}
 				if validity {
 					dag.Graph[h] = node
@@ -151,7 +187,7 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 	}
 	dag.Mux.Unlock()
 	if duplicationCheck == 1 {
-		checkorphanedTransactions(h, dag)
+		checkorphanedTransactions(h, dag, netGraph)
 	}
 	return duplicationCheck
 }
@@ -176,7 +212,7 @@ func GetAllHashes() [][]byte {
 }
 
 //checkorphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
-func checkorphanedTransactions(h string, dag *dt.DAG) {
+func checkorphanedTransactions(h string, dag *dt.DAG, prefixGraph *dt.PrefixGraph) {
 
 	mux.Lock()
 	list, ok := orphanedTransactions[h]
@@ -184,7 +220,7 @@ func checkorphanedTransactions(h string, dag *dt.DAG) {
 
 	if ok {
 		for _, node := range list {
-			if AddTransaction(dag, node.Tx, node.Signature) == 1 {
+			if AddTransaction(dag, prefixGraph, node.Tx, node.Signature) == 1 {
 				log.Println("resolved transaction")
 			}
 		}
