@@ -14,6 +14,11 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -61,7 +66,7 @@ func (cli *Client) SimulateClient() {
 			hash := Crypto.Hash([]byte("Hello,World!"))
 			cli.IssueTransaction(hash[:])
 			i++
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -82,6 +87,24 @@ func triggerServer() bool {
 
 type query struct {
 	hash [32]byte
+}
+
+// GetMemUsage returns the memory used by the current process
+func GetMemUsage() uint64 {
+	mem := &runtime.MemStats{}
+	runtime.ReadMemStats(mem)
+	return mem.Alloc
+}
+
+// GetCPUUsage returns the percentage of CPU used by the process
+func GetCPUUsage() (string, error) {
+	pid := os.Getpid()
+	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "%cpu").Output()
+	if err != nil {
+		return "", err
+	}
+	percent := strings.Split(string(out), "\n")[1]
+	return percent, nil
 }
 
 // RunAPI implements RESTAPI
@@ -106,6 +129,27 @@ func (cli *Client) RunAPI() {
 		w.WriteHeader(http.StatusOK)
 		// may be wrap it in a json object
 		w.Write(TxID)
+		return
+	})
+
+	http.HandleFunc("CPUStats", func(w http.ResponseWriter, r *http.Request) {
+		// get request for CPU stats
+		cpu, err := GetCPUUsage()
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cpu))
+		return
+	})
+
+	http.HandleFunc("MemStats", func(w http.ResponseWriter, r *http.Request) {
+		// get request for Mem Stats
+		mem := strconv.Itoa(int(GetMemUsage()))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mem))
 		return
 	})
 

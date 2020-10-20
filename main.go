@@ -9,7 +9,6 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"math/rand"
-	"sync"
 	"time"
 )
 
@@ -39,14 +38,12 @@ func main() {
 	st.ForwardingCh = ch
 	st.ServerCh = storageCh
 	go st.Run()
-	var wg sync.WaitGroup
-	wg.Add(1)
 	var cli client.Client
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
 	cli.SimulateClient()
-	wg.Wait()
+	cli.RunAPI()
 }
 
 func constructGenisis() dt.Vertex {
