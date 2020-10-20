@@ -25,7 +25,7 @@ func main() {
 	var ID p2p.PeerID
 	ID.PublicKey = Crypto.SerializePublicKey(&PrivateKey.PublicKey)
 	var dag dt.DAG
-	var netGraph dt.prefixGraph
+	var netGraph dt.PrefixGraph
 	v := constructGenisis()
 	genisisHash := Crypto.Hash(serialize.Encode32(v.Tx))
 	dag.Graph = make(map[string]dt.Vertex)

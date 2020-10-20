@@ -14,7 +14,7 @@ import (
 // )
 
 // New ...
-func New(hostID *p2p.PeerID, dag *dt.DAG, netGraph *dt.prefixGraph, PrivKey Crypto.PrivateKey) chan p2p.Msg {
+func New(hostID *p2p.PeerID, dag *dt.DAG, netGraph *dt.PrefixGraph, PrivKey Crypto.PrivateKey) chan p2p.Msg {
 
 	var srv p2p.Server
 	srv.HostID = *hostID

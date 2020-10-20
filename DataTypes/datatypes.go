@@ -7,10 +7,10 @@ import (
 
 // Transaction defines the structure of the transaction in the blockchain
 type Transaction struct {
-	Timestamp int64         //8 bytes
-	TxType    int32         //Allocate, Revoke, Update, Path announce, Path withdraw
-	Msg       BGPMssgHolder //could be a string but have to figure out serialization
-	From      [65]byte      //length of public key 33(compressed) or 65(uncompressed)
+	Timestamp int64    //8 bytes
+	TxType    uint32   // Allocate, Revoke, Update, Path announce, Path withdraw
+	Msg       []byte   //could be a string but have to figure out serialization
+	From      [65]byte //length of public key 33(compressed) or 65(uncompressed)
 	LeftTip   [32]byte
 	RightTip  [32]byte
 	Nonce     uint32 // 4 bytes
@@ -26,6 +26,14 @@ type BGPMssgHolder struct {
 	EndDate     int64
 }
 
+// PathAnnounceMsg carries the required BGP msg data for verification
+type PathAnnounceMsg struct {
+	Prefix        string
+	SourceAS      int32
+	DestinationAS []int32
+	ReferenceTX   [32]byte
+}
+
 // ASNode represents one vertex in the AS network graph
 type ASNode struct {
 	ASno        int32
@@ -34,8 +42,8 @@ type ASNode struct {
 	Connections []int32 //hash of the ASNode struct of peers
 }
 
-// prefixGraph is the graph representing the network structure of the
-type prefixGraph struct {
+// PrefixGraph is the graph representing the network structure of the
+type PrefixGraph struct {
 	Mux    sync.Mutex
 	Graph  map[string]ASNode // ASno maps to the ASnode
 	Length int
@@ -65,6 +73,7 @@ type ForwardTx struct {
 	Forward   bool
 }
 
+// ShardTransactionCh ...
 type ShardTransactionCh struct {
 	Tx   ShardTransaction
 	Sign []byte

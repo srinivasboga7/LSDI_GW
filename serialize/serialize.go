@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"log"
 	"reflect"
 )
@@ -25,11 +26,12 @@ func Encode32(t dt.Transaction) []byte {
 	// iterating over a struct is painful in golang
 	var b []byte
 	b = append(b, EncodeToBytes(t.Timestamp)...)
-	b = append(b, EncodeToBytes(t.Hash)...)
+	b = append(b, EncodeToBytes(t.TxType)...)
 	b = append(b, EncodeToBytes(t.From)...)
 	b = append(b, EncodeToBytes(t.LeftTip)...)
 	b = append(b, EncodeToBytes(t.RightTip)...)
 	b = append(b, EncodeToBytes(t.Nonce)...)
+	b = append(b, t.Msg...)
 	return b
 }
 
@@ -68,14 +70,28 @@ func EncodeToBytes(x interface{}) []byte {
 
 //Decode32 Converts back byte slice to transaction
 func Decode32(payload []byte, lenPayload uint32) (dt.Transaction, []byte) {
+
 	signature := make([]byte, 72)
 	copy(signature, payload[lenPayload-72:])
-	r := bytes.NewReader(payload[:lenPayload-72])
+
 	var tx dt.Transaction
-	err := binary.Read(r, binary.LittleEndian, &tx)
-	if err != nil {
-		log.Println(err)
-	}
+
+	txS := payload[:lenPayload-72]
+	r := bytes.NewReader(txS[:8])
+	binary.Read(r, binary.LittleEndian, &tx.Timestamp)
+
+	r = bytes.NewReader(txS[8:12])
+	binary.Read(r, binary.LittleEndian, &tx.TxType)
+
+	copy(tx.From[:], txS[12:77])
+	copy(tx.LeftTip[:], txS[77:109])
+	copy(tx.RightTip[:], txS[109:141])
+
+	r = bytes.NewReader(txS[141:145])
+	binary.Read(r, binary.LittleEndian, &tx.Nonce)
+
+	tx.Msg = append(tx.Msg, txS[145:]...)
+
 	return tx, signature
 }
 
@@ -101,4 +117,24 @@ func Decode36(payload []byte, lenPayload uint32) (dt.ShardTransaction, []byte) {
 		log.Println(err, "error due to serialization")
 	}
 	return tx, signature
+}
+
+// DecodePathAnnounceMsg decodes the Msg []byte of Tx
+func DecodePathAnnounceMsg(payload []byte) dt.PathAnnounceMsg {
+	var Pmsg dt.PathAnnounceMsg
+	err := json.Unmarshal(payload, &Pmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return Pmsg
+}
+
+// EncodePathAnnounceMsg encodes the msg to a byte slice
+func EncodePathAnnounceMsg(Pmsg dt.PathAnnounceMsg) []byte {
+	var b []byte
+	b, err := json.Marshal(Pmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return b
 }

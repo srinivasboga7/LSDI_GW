@@ -21,7 +21,7 @@ type Server struct {
 	ForwardingCh chan p2p.Msg
 	ServerCh     chan dt.ForwardTx
 	DAG          *dt.DAG
-	NET          *dt.prefixGraph
+	NET          *dt.PrefixGraph
 }
 
 //Hash returns the SHA256 hash value
@@ -31,7 +31,7 @@ func Hash(b []byte) []byte {
 }
 
 //AddTransaction checks if transaction if already present in the dag, if not adds to dag and database and returns true else returns false
-func AddTransaction(dag *dt.DAG, netGraph *dt.prefixGraph, tx dt.Transaction, signature []byte) int {
+func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, signature []byte) int {
 	// change this function for the storage node
 	var node dt.Vertex
 	var duplicationCheck int
