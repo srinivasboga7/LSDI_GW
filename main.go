@@ -42,7 +42,7 @@ func main() {
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
-	cli.SimulateClient()
+	go cli.SimulateClient()
 	cli.RunAPI()
 }
 

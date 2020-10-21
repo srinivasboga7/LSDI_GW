@@ -110,7 +110,7 @@ func GetCPUUsage() (string, error) {
 // RunAPI implements RESTAPI
 func (cli *Client) RunAPI() {
 
-	http.HandleFunc("api", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
 
 		// parse the post Request
 		// get the hash value
@@ -132,7 +132,7 @@ func (cli *Client) RunAPI() {
 		return
 	})
 
-	http.HandleFunc("CPUStats", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/CPUStats", func(w http.ResponseWriter, r *http.Request) {
 		// get request for CPU stats
 		cpu, err := GetCPUUsage()
 		if err != nil {
@@ -145,7 +145,7 @@ func (cli *Client) RunAPI() {
 		return
 	})
 
-	http.HandleFunc("MemStats", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/MemStats", func(w http.ResponseWriter, r *http.Request) {
 		// get request for Mem Stats
 		mem := strconv.Itoa(int(GetMemUsage()))
 		w.WriteHeader(http.StatusOK)
