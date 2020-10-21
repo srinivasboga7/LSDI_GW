@@ -138,3 +138,65 @@ func EncodePathAnnounceMsg(Pmsg dt.PathAnnounceMsg) []byte {
 	}
 	return b
 }
+
+// EncodePathWithdrawMsg encodes the struct to byte slice
+func EncodePathWithdrawMsg(PWmsg dt.PathWithdrawMsg) []byte {
+
+	var b []byte
+	b, err := json.Marshal(PWmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return b
+
+}
+
+// DecodePathWithdrawMsg decodes the Msg []byte of Tx
+func DecodePathWithdrawMsg(payload []byte) dt.PathWithdrawMsg {
+	var Pmsg dt.PathWithdrawMsg
+	err := json.Unmarshal(payload, &Pmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return Pmsg
+}
+
+// EncodeAllocateMsg encodes the struct to byte slice
+func EncodeAllocateMsg(Amsg dt.AllocateMsg) []byte {
+	var b []byte
+	b, err := json.Marshal(Amsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return b
+}
+
+// DecodeAllocateMsg decodes the Msg []byte of Tx
+func DecodeAllocateMsg(payload []byte) dt.AllocateMsg {
+	var Amsg dt.AllocateMsg
+	err := json.Unmarshal(payload, &Amsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return Amsg
+}
+
+// EncodeRevokeMsg encodes the struct to byte slice
+func EncodeRevokeMsg(Rmsg dt.RevokeMsg) []byte {
+	var b []byte
+	b, err := json.Marshal(Rmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return b
+}
+
+// DecodeRevokeMsg decodes the Msg []byte of Tx
+func DecodeRevokeMsg(payload []byte) dt.RevokeMsg {
+	var Rmsg dt.RevokeMsg
+	err := json.Unmarshal(payload, &Rmsg)
+	if err != nil {
+		log.Println(err)
+	}
+	return Rmsg
+}

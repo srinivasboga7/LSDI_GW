@@ -15,8 +15,7 @@ func TestTransactionSerialization(t *testing.T) {
 	tx.Nonce = 1
 
 	Pmsg.Prefix = "192.168.0.1/24"
-	Pmsg.SourceAS = 1
-	Pmsg.DestinationAS = append(Pmsg.DestinationAS, 2, 3)
+	Pmsg.DestinationAS = 2
 
 	tx.Msg = append(tx.Msg, EncodePathAnnounceMsg(Pmsg)...)
 

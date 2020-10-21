@@ -53,7 +53,6 @@ func main() {
 
 func constructGenisis() dt.Vertex {
 	var tx dt.Transaction
-	tx.Hash = Crypto.Hash([]byte("IOT BLOCKCHAIN GENISIS"))
 	var v dt.Vertex
 	v.Tx = tx
 	v.Signature = make([]byte, 72)

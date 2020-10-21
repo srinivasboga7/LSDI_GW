@@ -99,6 +99,7 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 				// bgpM = tx.Msg
 				if txType == 1 { //Allocate
 					var bgpM dt.AllocateMsg
+					bgpM = serialize.DecodeAllocateMsg(tx.Msg)
 					prefix := bgpM.Prefix
 					var asNode dt.ASNode
 					asNode.ASno = bgpM.DestinationAS
@@ -110,6 +111,7 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 					validity = true
 				} else if txType == 2 { //Revoke
 					var bgpM dt.RevokeMsg
+					bgpM = serialize.DecodeRevokeMsg(tx.Msg)
 					prefix := bgpM.Prefix
 					netGraph.Mux.Lock()
 					delete(netGraph.Graph, prefix)
@@ -120,6 +122,7 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 					validity = true
 				} else if txType == 4 { //Path Announce
 					var bgpM dt.PathAnnounceMsg
+					bgpM = serialize.DecodePathAnnounceMsg(tx.Msg)
 					prefix := bgpM.Prefix
 					netGraph.Mux.Lock()
 					found := 0
@@ -150,6 +153,7 @@ func AddTransaction(dag *dt.DAG, netGraph *dt.PrefixGraph, tx dt.Transaction, si
 					netGraph.Mux.Unlock()
 				} else if txType == 5 { //Path withdraw
 					var bgpM dt.PathWithdrawMsg
+					bgpM = serialize.DecodePathWithdrawMsg(tx.Msg)
 					prefix := bgpM.Prefix
 					netGraph.Mux.Lock()
 					if conns, ok := netGraph.Graph[prefix].Connections[bgpM.SourceAS]; ok {
