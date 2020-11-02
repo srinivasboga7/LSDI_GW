@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"log"
 	"sync"
+	"time"
 	// "net"
 )
 
@@ -164,6 +165,14 @@ func (srv *Server) Run() {
 				msg.ID = 32
 				msg.Payload = append(serialize.Encode32(node.Tx), node.Signature...)
 				msg.LenPayload = uint32(len(msg.Payload))
+				srv.DAG.Mux.Lock()
+				if len(srv.DAG.RecentTXs) < 10000 {
+					srv.DAG.RecentTXs = append(srv.DAG.RecentTXs, time.Now().UnixNano())
+				} else {
+					srv.DAG.RecentTXs = srv.DAG.RecentTXs[5000:]
+					srv.DAG.RecentTXs = append(srv.DAG.RecentTXs, time.Now().UnixNano())
+				}
+				srv.DAG.Mux.Unlock()
 				srv.ForwardingCh <- msg
 			} else if dup == 2 {
 				var msg p2p.Msg

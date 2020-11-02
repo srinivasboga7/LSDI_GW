@@ -30,6 +30,28 @@ type Client struct {
 	DAG  *dt.DAG
 }
 
+// TxStats ...
+type TxStats struct {
+	TxInputRate float64
+}
+
+// CalculateTxInputRate function calculates the input transaction rate
+func (cli *Client) CalculateTxInputRate(windowSize int64) (float64, int) {
+	cli.DAG.Mux.Lock()
+	window := time.Now().UnixNano() - windowSize*time.Second.Nanoseconds()
+	var txsRate float64
+	l := len(cli.DAG.RecentTXs)
+	for i := l - 1; i >= 0; i-- {
+		if cli.DAG.RecentTXs[i] > window {
+			txsRate++
+		} else {
+			break
+		}
+	}
+	cli.DAG.Mux.Unlock()
+	return txsRate / float64(windowSize), l
+}
+
 // IssueTransaction ...
 func (cli *Client) IssueTransaction(hash []byte) []byte {
 	var tx dt.Transaction
@@ -140,6 +162,7 @@ func (cli *Client) RunAPI() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		cpu = cpu + "percent"
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(cpu))
 		return
@@ -148,8 +171,19 @@ func (cli *Client) RunAPI() {
 	http.HandleFunc("/MemStats", func(w http.ResponseWriter, r *http.Request) {
 		// get request for Mem Stats
 		mem := strconv.Itoa(int(GetMemUsage()))
+		mem = mem + "bytes"
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(mem))
+		return
+	})
+
+	http.HandleFunc("/TxInputRate", func(w http.ResponseWriter, r *http.Request) {
+		txRate, _ := cli.CalculateTxInputRate(30)
+		var txStats TxStats
+		txStats.TxInputRate = txRate
+		w.WriteHeader(http.StatusOK)
+		s, _ := json.Marshal(txStats)
+		w.Write(s)
 		return
 	})
 

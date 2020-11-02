@@ -64,4 +64,5 @@ type DAG struct {
 	Graph     map[string]Vertex
 	Length    int
 	StorageCh chan ForwardTx
+	RecentTXs []int64
 }
