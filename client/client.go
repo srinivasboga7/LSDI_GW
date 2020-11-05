@@ -187,5 +187,36 @@ func (cli *Client) RunAPI() {
 		return
 	})
 
+	http.HandleFunc("/CurrentTips", func(w http.ResponseWriter, r *http.Request) {
+		cli.DAG.Mux.Lock()
+		tips := consensus.GetAllTips(cli.DAG.Graph, 1)
+		cli.DAG.Mux.Unlock()
+		type TipsResp struct {
+			tips []string
+		}
+		var resp TipsResp
+		resp.tips = tips
+
+		w.WriteHeader(http.StatusOK)
+		s, _ := json.Marshal(resp)
+		w.Write(s)
+		return
+	})
+
+	http.HandleFunc("/CurrentDAGSize", func(w http.ResponseWriter, r *http.Request) {
+		cli.DAG.Mux.Lock()
+		DAGLength := len(cli.DAG.Graph)
+		cli.DAG.Mux.Unlock()
+		type DAGSize struct {
+			length int
+		}
+		var resp DAGSize
+		resp.length = DAGLength
+
+		w.WriteHeader(http.StatusOK)
+		s, _ := json.Marshal(resp)
+		w.Write(s)
+	})
+
 	http.ListenAndServe(":8989", nil)
 }
