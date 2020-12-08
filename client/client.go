@@ -9,6 +9,7 @@ import (
 	"GO-DAG/serialize"
 	"GO-DAG/storage"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -108,7 +109,7 @@ func triggerServer() bool {
 }
 
 type query struct {
-	hash [32]byte
+	hash string
 }
 
 // GetMemUsage returns the memory used by the current process
@@ -134,20 +135,14 @@ func (cli *Client) RunAPI() {
 
 	http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
 
-		// parse the post Request
-		// get the hash value
-		// generate a transaction
-		// respond with TxID
-
-		var q query
-		err := json.NewDecoder(r.Body).Decode(&q)
-		if err != nil {
-			log.Println(err)
-			// respond with bad request
-			w.WriteHeader(http.StatusBadRequest)
-			return
+		var hash string
+		for _, v := range r.URL.Query() {
+			hash = v[0]
 		}
-		TxID := cli.IssueTransaction(q.hash[:])
+		//log.Println(q.hash)
+		h, _ := hex.DecodeString(hash)
+		log.Println(h)
+		TxID := cli.IssueTransaction(h)
 		w.WriteHeader(http.StatusOK)
 		// may be wrap it in a json object
 		w.Write(TxID)
