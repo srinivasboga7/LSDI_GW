@@ -4,6 +4,7 @@ import (
 	"GO-DAG/Crypto"
 	dt "GO-DAG/DataTypes"
 	"GO-DAG/client"
+	"GO-DAG/gateway"
 	"GO-DAG/node"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
@@ -43,6 +44,9 @@ func main() {
 	cli.Send = ch
 	cli.DAG = &dag
 	// go cli.SimulateClient()
+
+	go gateway.RunAPI()
+
 	cli.RunAPI()
 }
 
