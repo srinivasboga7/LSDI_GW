@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -45,9 +44,9 @@ func RunAPI() {
 			log.Fatal(err)
 		}
 
-		fmt.Println("DATA RECIEVED", d)
+		log.Println("DATA RECIEVED FROM SENSOR :", d)
 
-		handleData(DataBuffers, d)
+		handleData(&DataBuffers, d)
 
 		return
 	})
@@ -55,27 +54,33 @@ func RunAPI() {
 	http.ListenAndServe(":7000", nil)
 }
 
-func handleData(DataBuffers [4][]sensorData, Data sensorData) {
+func handleData(DataBuffers *[4][]sensorData, Data sensorData) {
 
 	sensorType := int(Data.SensorType)
 
-	DataBuffers[sensorType] = append(DataBuffers[sensorType], Data)
+	buffer := append(DataBuffers[sensorType], Data)
+	DataBuffers[sensorType] = buffer
 
 	if len(DataBuffers[sensorType]) < MaxBufferSize {
 
 	} else {
+
+		log.Println("BUFFER LIMIT REACHED")
 
 		var txid string
 
 		ser, _ := json.Marshal(DataBuffers[sensorType])
 		h := sha256.Sum256(ser)
 		hash := hex.EncodeToString(h[:])
+		log.Println("HASH VALUE OF THE CHUNK", hash)
 
 		txid = uploadToBlockchain(hash)
+		log.Println("HASH UPLOADED TO BLOCKCHAIN")
 
 		for _, data := range DataBuffers[sensorType] {
 			uploadToCloud(data, txid, sensorType)
 		}
+		log.Println("CHUNK UPLOADED TO THE CLOUD")
 
 		DataBuffers[sensorType] = nil
 

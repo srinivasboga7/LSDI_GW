@@ -141,7 +141,6 @@ func (cli *Client) RunAPI() {
 		}
 		//log.Println(q.hash)
 		h, _ := hex.DecodeString(hash)
-		log.Println(h)
 		TxID := cli.IssueTransaction(h)
 		w.WriteHeader(http.StatusOK)
 		// may be wrap it in a json object
