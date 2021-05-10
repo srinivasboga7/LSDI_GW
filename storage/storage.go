@@ -2,7 +2,6 @@ package storage
 
 import (
 	dt "GO-DAG/DataTypes"
-	db "GO-DAG/database"
 	"GO-DAG/p2p"
 	"GO-DAG/serialize"
 	"bytes"
@@ -10,7 +9,6 @@ import (
 	"log"
 	"sync"
 	"time"
-	// "net"
 )
 
 var orphanedTransactions = make(map[string][]dt.Vertex)
@@ -114,25 +112,6 @@ func AddTransaction(dag *dt.DAG, tx dt.Transaction, signature []byte) int {
 	return duplicationCheck
 }
 
-//GetTransactiondb Wrapper function for GetTransaction in db module
-func GetTransactiondb(Txid []byte) (dt.Transaction, []byte) {
-	stream := db.GetValue(Txid)
-	var retval dt.Transaction
-	var sig []byte
-	retval, sig = serialize.Decode32(stream, uint32(len(stream)))
-	return retval, sig
-}
-
-//CheckifPresentDb Wrapper function for CheckKey in db module
-func CheckifPresentDb(Txid []byte) bool {
-	return db.CheckKey(Txid)
-}
-
-//GetAllHashes Wrapper function for GetAllKeys in db module
-func GetAllHashes() [][]byte {
-	return db.GetAllKeys()
-}
-
 //checkorphanedTransactions Checks if any other transaction already arrived has any relation with this transaction, Used in the AddTransaction function
 func checkorphanedTransactions(h string, dag *dt.DAG) {
 
@@ -147,14 +126,13 @@ func checkorphanedTransactions(h string, dag *dt.DAG) {
 			}
 		}
 	}
-	// log.Println(len(orphanedTransactions))
 	mux.Lock()
 	delete(orphanedTransactions, h)
 	mux.Unlock()
 	return
 }
 
-// Run ...
+// Run spawns a storage server which spins on a channel (ServerCh) to accept transactions and add them to the DAG.
 func (srv *Server) Run() {
 	for {
 		node := <-srv.ServerCh

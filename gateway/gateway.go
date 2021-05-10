@@ -29,7 +29,7 @@ type sensorData struct {
 	SensorType   uint8
 }
 
-// RunAPI handles all the data
+// RunAPI handles all the incoming data from the sensors
 func RunAPI() {
 
 	var DataBuffers [4][]sensorData
@@ -88,6 +88,7 @@ func handleData(DataBuffers *[4][]sensorData, Data sensorData) {
 
 }
 
+// uploads the data to the cloud after getting the transaction ID
 func uploadToCloud(data sensorData, txid string, sensorType int) {
 
 	db, err := sql.Open("mysql", "root:root@tcp("+DatabaseAddress+")/coldchain")
@@ -109,6 +110,7 @@ func uploadToCloud(data sensorData, txid string, sensorType int) {
 
 }
 
+// uploads the data to the blockchain
 func uploadToBlockchain(hash string) string {
 	url := "http://" + GWAddress + "/api?q="
 

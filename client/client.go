@@ -26,9 +26,8 @@ import (
 // Client ...
 type Client struct {
 	PrivateKey *ecdsa.PrivateKey
-	// should I keep the dag here or run a go routine for storage layer
-	Send chan p2p.Msg
-	DAG  *dt.DAG
+	Send       chan p2p.Msg
+	DAG        *dt.DAG
 }
 
 // TxStats ...
@@ -53,19 +52,22 @@ func (cli *Client) CalculateTxInputRate(windowSize int64) (float64, int) {
 	return txsRate / float64(windowSize), l
 }
 
-// IssueTransaction ...
+// IssueTransaction is used for generating transaction given a hash value to be stored in the transaction
+// Input : hash value that is stored in a transaction
+// Output : Transaction ID of the generated transaction
 func (cli *Client) IssueTransaction(hash []byte) []byte {
 	var tx dt.Transaction
 	copy(tx.Hash[:], hash[:])
 	tx.Timestamp = time.Now().UnixNano()
 	copy(tx.From[:], Crypto.SerializePublicKey(&cli.PrivateKey.PublicKey))
+
 	// tip selection
 	// broadcast transaction
 
 	copy(tx.LeftTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.001)))
 	copy(tx.RightTip[:], Crypto.DecodeToBytes(consensus.GetTip(cli.DAG, 0.001)))
 	pow.PoW(&tx, 3)
-	// fmt.Println("After pow")
+
 	b := serialize.Encode32(tx)
 	var msg p2p.Msg
 	msg.ID = 32

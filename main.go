@@ -16,12 +16,12 @@ import (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	var PrivateKey Crypto.PrivateKey
+	// checking for a private key if provided
 	if Crypto.CheckForKeys() {
 		PrivateKey = Crypto.LoadKeys()
 	} else {
 		PrivateKey = Crypto.GenerateKeys()
 	}
-	// database.OpenDB()
 	var ID p2p.PeerID
 	ID.PublicKey = Crypto.SerializePublicKey(&PrivateKey.PublicKey)
 	var dag dt.DAG
@@ -43,10 +43,9 @@ func main() {
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
-	// go cli.SimulateClient()
-
+	// API for accpeting data from the sensors
 	go gateway.RunAPI()
-
+	// API for monitoring metrics and also generating transactions from the hash value
 	cli.RunAPI()
 }
 

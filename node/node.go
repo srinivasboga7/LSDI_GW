@@ -8,12 +8,10 @@ import (
 	"log"
 )
 
-// var (
-// 	f, _    = os.Create("temp/logFile.txt")
-// 	logLock sync.Mutex
-// )
-
-// New ...
+// New is used to create the blockchain node
+// It spins up a server to accept transactions and returns a channel for client to broadcast transactions
+// Input : p2pID(contains IP address), PrivKey(PrivateKey)
+// Output : channel that accepts transaction to be broadcasted
 func New(hostID *p2p.PeerID, dag *dt.DAG, PrivKey Crypto.PrivateKey) chan p2p.Msg {
 
 	var srv p2p.Server
@@ -39,33 +37,7 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	if msg.ID == 32 {
 		// transaction
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
-		// log.Println(hex.EncodeToString(tx.LeftTip[:]))
 		if validTransaction(msg.Payload, tx.From[:]) {
-			// tr := storage.AddTransaction(dag, tx, sign)
-			// if tr == 1 {
-			// 	send <- msg
-			// 	// logLock.Lock()
-			// 	// f.WriteString(fmt.Sprintf("%d %d %d\n", p.ID.IP, time.Now().Minute(), time.Now().Second()))
-			// 	// logLock.Unlock()
-			// 	// fmt.Println(time.Now())
-			// } else if tr == 2 {
-			// 	var msg p2p.Msg
-			// 	msg.ID = 34
-			// 	left := serialize.EncodeToHex(tx.LeftTip[:])
-			// 	right := serialize.EncodeToHex(tx.RightTip[:])
-			// 	dag.Mux.Lock()
-			// 	if _, t1 := dag.Graph[left]; !t1 {
-			// 		msg.Payload = tx.LeftTip[:]
-			// 		msg.LenPayload = uint32(len(msg.Payload))
-			// 		p.Send(msg)
-			// 	}
-			// 	if _, t2 := dag.Graph[right]; !t2 {
-			// 		msg.Payload = tx.RightTip[:]
-			// 		msg.LenPayload = uint32(len(msg.Payload))
-			// 		p.Send(msg)
-			// 	}
-			// 	dag.Mux.Unlock()
-			// }
 			var sTx dt.ForwardTx
 			sTx.Tx = tx
 			sTx.Signature = sign
@@ -91,25 +63,6 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 	} else if msg.ID == 33 {
 		tx, sign := serialize.Decode32(msg.Payload, msg.LenPayload)
 		if validTransaction(msg.Payload, tx.From[:]) {
-			// tr := storage.AddTransaction(dag, tx, sign)
-			// if tr == 2 {
-			// 	var msg p2p.Msg
-			// 	msg.ID = 34
-			// 	left := serialize.EncodeToHex(tx.LeftTip[:])
-			// 	right := serialize.EncodeToHex(tx.RightTip[:])
-			// 	dag.Mux.Lock()
-			// 	if _, t1 := dag.Graph[left]; !t1 {
-			// 		msg.Payload = tx.LeftTip[:]
-			// 		msg.LenPayload = uint32(len(msg.Payload))
-			// 		p.Send(msg)
-			// 	}
-			// 	if _, t2 := dag.Graph[right]; !t2 {
-			// 		msg.Payload = tx.RightTip[:]
-			// 		msg.LenPayload = uint32(len(msg.Payload))
-			// 		p.Send(msg)
-			// 	}
-			// 	dag.Mux.Unlock()
-			// }
 			var sTx dt.ForwardTx
 			sTx.Tx = tx
 			sTx.Signature = sign
@@ -126,9 +79,6 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 		}
 	} else if msg.ID == 36 { //Sharding tx from other nodes
 		tx, sign := serialize.Decode36(msg.Payload, msg.LenPayload)
-		// if sh.VerifyShardTransaction(tx, sign, 4) {
-		// 	Shardtxch <- tx
-		// }
 		var sch dt.ShardTransactionCh
 		sch.Tx = tx
 		sch.Sign = sign

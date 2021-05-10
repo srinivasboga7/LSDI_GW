@@ -335,19 +335,7 @@ func PruneDag(Graph map[string]dt.Vertex, Ratings map[string]int, Threshold int)
 	// var zero [32]byte
 	for k := range Graph {
 		if Ratings[k] > Threshold {
-			// for _, neighbour := range v.Neighbours {
-			// 	node := Graph[neighbour]
-			// 	l := Graph[neighbour].Tx.LeftTip
-			// 	if hex.EncodeToString(l[:]) == k {
-			// 		node.Tx.LeftTip = zero
-			// 		Graph[neighbour] = node
-			// 	}
-			// 	r := Graph[neighbour].Tx.RightTip
-			// 	if hex.EncodeToString(r[:]) == k {
-			// 		node.Tx.RightTip = zero
-			// 		Graph[neighbour] = node
-			// 	}
-			// }
+
 			delete(Graph, k)
 		}
 	}
