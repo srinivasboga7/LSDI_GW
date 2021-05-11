@@ -26,7 +26,8 @@ This repository has a implementation of LSDI gateway node and discovery node. LS
 
 ### Build
 
-You can build the node by running go build main.go 
+You can build the node by running :
+> go build main.go 
 
 
 ### API
