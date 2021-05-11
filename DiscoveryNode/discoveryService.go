@@ -29,7 +29,6 @@ type peerAddr struct {
 	PublicKey   []byte
 }
 
-// better add a database as the backup
 type liveNodes struct {
 	GWNodes gatewayNodes
 	SNNodes storageNodes
@@ -63,19 +62,6 @@ func find(list []peerAddr, element peerAddr) bool {
 		}
 	}
 	return false
-}
-
-func triggerNodes(nodes []peerAddr) {
-
-	for _, node := range nodes {
-		conn, err := net.Dial("tcp", parseAddr(node.networkAddr)+":6666")
-		if err != nil {
-			log.Println(err)
-		}
-		buf := []byte{0x05}
-		conn.Write(buf)
-		conn.Close()
-	}
 }
 
 func (nodes *liveNodes) appendTo(peer peerAddr, GS bool) {
@@ -307,15 +293,6 @@ func handleConnection(conn net.Conn, nodes *liveNodes) {
 		b, _ := json.Marshal(p)
 		conn.Write(b)
 		nodes.appendTo(newPeer, GS)
-
-		// if currNodeCount >= totalNodes {
-		// 	time.Sleep(30 * time.Second)
-		// 	nodes.GWNodes.mux.Lock()
-		// 	for _, shard := range nodes.GWNodes.shards {
-		// 		go triggerNodes(shard.Nodes)
-		// 	}
-		// 	nodes.GWNodes.mux.Unlock()
-		// }
 	}
 	return
 }

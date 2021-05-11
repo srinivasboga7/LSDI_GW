@@ -11,9 +11,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -78,36 +76,6 @@ func (cli *Client) IssueTransaction(hash []byte) []byte {
 	cli.Send <- msg
 	storage.AddTransaction(cli.DAG, tx, sign)
 	return h[:]
-}
-
-// SimulateClient issues fake transactions
-func (cli *Client) SimulateClient() {
-
-	if triggerServer() {
-		time.Sleep(5 * time.Second)
-		i := 0
-		for {
-			fmt.Println(i, "===============")
-			hash := Crypto.Hash([]byte("Hello,World!"))
-			cli.IssueTransaction(hash[:])
-			i++
-			time.Sleep(500 * time.Millisecond)
-		}
-	}
-}
-
-func triggerServer() bool {
-	listener, err := net.Listen("tcp", ":6666")
-	if err != nil {
-		log.Fatal(err)
-	}
-	conn, err := listener.Accept()
-	buf := make([]byte, 1)
-	conn.Read(buf)
-	if buf[0] == 0x05 {
-		return true
-	}
-	return false
 }
 
 type query struct {
