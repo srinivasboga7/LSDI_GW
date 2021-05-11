@@ -13,7 +13,7 @@ LSDI (lightweight and scalable DAG based blockchain for verifying IoT data integ
 
 ## Background
 
-This repository has a implementation of LSDI gateway node and discovery node. LSDI is a DAG based blockchain system inspired from IoTA to improve the scalabilty of using blockchain in IoT environments. To find more about the system please read [LSDI] (https://ieeexplore.ieee.org/abstract/document/9334000/).
+This repository has a implementation of LSDI gateway node and discovery node. LSDI is a DAG based blockchain system inspired from IoTA to improve the scalabilty of using blockchain in IoT environments. To find more about the system please read https://ieeexplore.ieee.org/abstract/document/9334000/.
 
 ## Usage
 
