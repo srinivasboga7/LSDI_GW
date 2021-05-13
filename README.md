@@ -21,7 +21,7 @@ This repository has a implementation of LSDI gateway node and discovery node. LS
 
 - golang (version > 1.08) installed
 - Discovery node up and running
-- At least one storage node up and running
+- At least one storage node up and running. For storage node code check [this repository](https://github.com/sumanthcherupally/LSDI_SN)
 - provide the address of the discovery node in bootstrapNodes.txt file
 
 ### Build
