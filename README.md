@@ -24,13 +24,25 @@ This repository has a implementation of LSDI gateway node and discovery node. LS
 - At least one storage node up and running
 - provide the address of the discovery node in bootstrapNodes.txt file
 
-### Build
+### Building the Source 
 
 You can build the node by running :
 > go build main.go 
 
+A sample DockerFile is provided in the repository to run the node in a docker container.
+
 
 ### API
+
+To generate transactions and access information related to the node an API is provided.
+
+### Generating Transactions
+
+To generate a transaction you need to provide a hash value (Integrity Proof of the Data) to be stored in the transaction.
+
+SampleUrl | http://192.168.0.2:8989/api/(hash value)
+Request Type | HTTP GET Request
+Response | Transaction ID
 
 
 ## Development 
