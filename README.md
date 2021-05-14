@@ -44,5 +44,17 @@ SampleUrl    | http://192.168.0.2:8989/api/ (hash value)
 ---          | ---
 Request Type | HTTP GET Request
 Response     | Transaction ID
+
+### Transaction Input Rate
+
+Transaction Input Rate is the number of valid transactions per second in the node that are processed and attached to the DAG. 
+
+SampleUrl    | http://192.168.0.2:8989/TxInputRate/
+---          | ---
+Request Type | HTTP GET Request
+Response     | JSON object containing Transaction Input Rate
+
+
+
  
 
