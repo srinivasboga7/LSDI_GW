@@ -54,7 +54,7 @@ SampleUrl    | http://192.168.0.2:8989/TxInputRate/
 Request Type | HTTP GET Request
 Response     | JSON object containing Transaction Input Rate
 
+In a similar way there is an API provided to access Memory Usage, CPU usage etc.
 
-
- 
+To know more about the other functionality api provides read client.go 
 
