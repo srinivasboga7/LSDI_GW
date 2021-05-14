@@ -1,14 +1,14 @@
 package main
 
 import (
-	"GO-DAG/Crypto"
-	dt "GO-DAG/DataTypes"
-	"GO-DAG/client"
-	"GO-DAG/gateway"
-	"GO-DAG/node"
-	"GO-DAG/p2p"
-	"GO-DAG/serialize"
-	"GO-DAG/storage"
+	"LSDI_GW/Crypto"
+	dt "LSDI_GW/DataTypes"
+	"LSDI_GW/client"
+	"LSDI_GW/gateway"
+	"LSDI_GW/node"
+	"LSDI_GW/p2p"
+	"LSDI_GW/serialize"
+	"LSDI_GW/storage"
 	"math/rand"
 	"time"
 )

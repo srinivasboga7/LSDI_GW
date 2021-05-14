@@ -1,7 +1,7 @@
 package serialize
 
 import (
-	dt "GO-DAG/DataTypes"
+	dt "LSDI_GW/DataTypes"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"

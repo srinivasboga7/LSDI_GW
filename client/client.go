@@ -1,13 +1,13 @@
 package client
 
 import (
-	"GO-DAG/Crypto"
-	dt "GO-DAG/DataTypes"
-	pow "GO-DAG/Pow"
-	"GO-DAG/consensus"
-	"GO-DAG/p2p"
-	"GO-DAG/serialize"
-	"GO-DAG/storage"
+	"LSDI_GW/Crypto"
+	dt "LSDI_GW/DataTypes"
+	pow "LSDI_GW/Pow"
+	"LSDI_GW/consensus"
+	"LSDI_GW/p2p"
+	"LSDI_GW/serialize"
+	"LSDI_GW/storage"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"

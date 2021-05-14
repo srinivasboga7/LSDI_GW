@@ -1,10 +1,10 @@
 package p2p
 
 import (
-	"GO-DAG/Crypto"
-	dt "GO-DAG/DataTypes"
-	"GO-DAG/serialize"
-	sh "GO-DAG/sharding"
+	"LSDI_GW/Crypto"
+	dt "LSDI_GW/DataTypes"
+	"LSDI_GW/serialize"
+	sh "LSDI_GW/sharding"
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"

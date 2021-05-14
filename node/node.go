@@ -1,10 +1,10 @@
 package node
 
 import (
-	"GO-DAG/Crypto"
-	dt "GO-DAG/DataTypes"
-	"GO-DAG/p2p"
-	"GO-DAG/serialize"
+	"LSDI_GW/Crypto"
+	dt "LSDI_GW/DataTypes"
+	"LSDI_GW/p2p"
+	"LSDI_GW/serialize"
 	"log"
 )
 

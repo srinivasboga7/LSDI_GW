@@ -1,12 +1,12 @@
 package consensus
 
 import (
-	dt "GO-DAG/DataTypes"
+	dt "LSDI_GW/DataTypes"
 	"encoding/hex"
 	"math"
 	"math/rand"
 	"time"
-	// "GO-DAG/dt"
+	// "LSDI_GW/dt"
 )
 
 func getMax(s []int) int {

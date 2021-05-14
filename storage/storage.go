@@ -1,9 +1,9 @@
 package storage
 
 import (
-	dt "GO-DAG/DataTypes"
-	"GO-DAG/p2p"
-	"GO-DAG/serialize"
+	dt "LSDI_GW/DataTypes"
+	"LSDI_GW/p2p"
+	"LSDI_GW/serialize"
 	"bytes"
 	"crypto/sha256"
 	"log"
