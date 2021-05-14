@@ -43,6 +43,7 @@ To generate a transaction you need to provide a hash value (Integrity Proof of t
 SampleUrl    | http://192.168.0.2:8989/api/ (hash value)
 ---          | ---
 Request Type | HTTP GET Request
+---          | --- 
 Response     | Transaction ID
  
 
