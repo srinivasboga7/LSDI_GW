@@ -9,7 +9,6 @@ LSDI (lightweight and scalable DAG based blockchain for verifying IoT data integ
     - Prerequisites
     - Build
     - API
-- Development
 
 ## Background
 
@@ -34,17 +33,27 @@ A sample DockerFile is provided in the repository to run the node in a docker co
 
 ### API
 
-To generate transactions and access information related to the node an API is provided.
+To generate transactions and access information related to the node an API is provided. REST API is hosted on port 8989.
 
 ### Generating Transactions
 
 To generate a transaction you need to provide a hash value (Integrity Proof of the Data) to be stored in the transaction.
 
-SampleUrl | http://192.168.0.2:8989/api/(hash value)
---- | --- 
+SampleUrl    | http://192.168.0.2:8989/api/ (hash value)
+---          | ---
 Request Type | HTTP GET Request
-Response | Transaction ID
+Response     | Transaction ID
 
+### Transaction Input Rate
 
-## Development 
+Transaction Input Rate is the number of valid transactions per second in the node that are processed and attached to the DAG. 
+
+SampleUrl    | http://192.168.0.2:8989/TxInputRate/
+---          | ---
+Request Type | HTTP GET Request
+Response     | JSON object containing Transaction Input Rate
+
+In a similar way there is an API provided to access Memory Usage, CPU usage etc.
+
+To know more about the other functionality api provides read client.go 
 
