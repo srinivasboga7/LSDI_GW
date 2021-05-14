@@ -33,7 +33,7 @@ A sample DockerFile is provided in the repository to run the node in a docker co
 
 ### API
 
-To generate transactions and access information related to the node an API is provided.
+To generate transactions and access information related to the node an API is provided. REST API is hosted on port 8989.
 
 ### Generating Transactions
 
