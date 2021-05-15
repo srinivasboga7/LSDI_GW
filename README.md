@@ -59,7 +59,7 @@ To know more about the other functionality api provides read client.go
 
 ## Pseudo Gateway Application
 
-The repo also contains a simple IoT gateway functionality integrated with LSDI. The gateway module provides a REST API on port 7000 to accept data from the sensors and forward it to the cloud database (database address to be provided in the config.json file). 
+The repo also contains a sample IoT gateway functionality integrated with LSDI. The gateway module provides a REST API on port 7000 to accept data from the sensors and forward it to the cloud database (database address to be provided in the config.json file). You can use this application as an example of integrating IoT applications with LSDI.
 
 SampleUrl   | http://192.168.0.2:7000/postData 
 ---         | ---
