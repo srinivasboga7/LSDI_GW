@@ -67,6 +67,15 @@ RequestType | HTTP POST Request
 Response    | HTTP OK 
 
 
-## Contribution and Future Development
+## Future Development
+
+To contribute to this project, fork the repo and start creating a pull request for the repository maintainers to review and merge into the main branch. 
+
+To get the documentation of all the modules use godoc feature, for example :
+> godoc -http=:6060 
+The above commands generates doumentation for the entire repo, you can access the documentation by going to localhost:6060 on your browser.
+
+
+
 
 
