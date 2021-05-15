@@ -68,7 +68,7 @@ Response    | HTTP OK
 
 ### Architecture of the LSDI system
 
-![architecture](https://user-images.githubusercontent.com/45848292/118356829-b61be200-b594-11eb-83e3-531ae8dfc422.gif)
+![arch1](https://user-images.githubusercontent.com/45848292/118356872-e2cff980-b594-11eb-9054-2edfa529feb8.gif)
 
 
 
