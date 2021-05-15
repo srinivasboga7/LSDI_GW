@@ -28,7 +28,7 @@ The code for discovery node is provided in the DiscoveryNode directory in the re
 > go build discoveryService.go
 
 To run the discovery node we need to provide port number, max nodes in a shard as command line arguments
-> ./discoveryService port_number max nodes in a shard
+> ./discoveryService port_number max_nodes
 
 
 ### API
