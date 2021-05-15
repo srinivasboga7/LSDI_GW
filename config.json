@@ -1,7 +1,8 @@
 {
     "config" : {
-        "DatabaseAddress" : "",
+        "DatabaseAddress" : "127.0.0.1:3306",
         "GatewayAddress" : "127.0.0.1:8989",
-        "DiscoveryNodeAddress" : ""
+        "DiscoveryNodeAddress" : "127.0.0.1:8090",
+        "SnapshotThreshold" : 1000
     }
 }

@@ -18,7 +18,6 @@ import (
 // used to sign the messages
 var (
 	PrivateKey    Crypto.PrivateKey
-	totalNodes    int
 	maxNodes      int
 	currNodeCount int
 )
@@ -306,9 +305,7 @@ func checkDB(nodes *liveNodes) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	port := os.Args[1]
-	// argument contains total number of nodes in the test network
-	totalNodes, _ = strconv.Atoi(os.Args[2])
-	maxNodes, _ = strconv.Atoi(os.Args[3])
+	maxNodes, _ = strconv.Atoi(os.Args[2])
 
 	log.Println("Discovery service running on port", port)
 	var nodes liveNodes
