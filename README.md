@@ -69,6 +69,4 @@ Response    | HTTP OK
 
 ## Contribution and Future Development
 
-### Testing 
-
 
