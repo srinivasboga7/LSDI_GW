@@ -57,3 +57,7 @@ In a similar way there is an API provided to access Memory Usage, CPU usage etc.
 
 To know more about the other functionality api provides read client.go 
 
+## Pseudo Gateway Application
+
+The repo also contains a simple IoT gateway functionality integrated with LSDI. The gateway module 
+
