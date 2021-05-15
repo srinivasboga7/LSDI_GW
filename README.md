@@ -72,6 +72,11 @@ Response    | HTTP OK
 
 
 
+## TestBed Setup 
+
+You can use Docker containers to run multiple nodes and setup a testbed. A sample DockerFile is provided in the repo to help you get started. setup bash scripts so that the whole process of running nodes can be automated. Always remember to run the discovery node first before running any node.
+
+
 ## Future Development
 
 To contribute to this project, fork the repo and start creating a pull request for the repository maintainers to review and merge into the main branch. 
