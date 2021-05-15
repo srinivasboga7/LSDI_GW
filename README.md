@@ -59,5 +59,16 @@ To know more about the other functionality api provides read client.go
 
 ## Pseudo Gateway Application
 
-The repo also contains a simple IoT gateway functionality integrated with LSDI. The gateway module 
+The repo also contains a simple IoT gateway functionality integrated with LSDI. The gateway module provides a REST API to accept data from the sensors and forward it to the cloud database (database address to be provided in the config.json file). 
+
+SampleUrl   | http://192.168.0.2:7000/postData 
+---         | ---
+RequestType | HTTP POST Request
+Response    | HTTP OK 
+
+
+## Contribution and Future Development
+
+### Testing 
+
 
