@@ -71,10 +71,15 @@ Response    | HTTP OK
 ![arch1](https://user-images.githubusercontent.com/45848292/118356872-e2cff980-b594-11eb-9054-2edfa529feb8.gif)
 
 
-
 ## TestBed Setup 
 
-You can use Docker containers to run multiple nodes and setup a testbed. A sample DockerFile is provided in the repo to help you get started. setup bash scripts so that the whole process of running nodes can be automated. Always remember to run the discovery node first before running any node.
+You can use Docker containers to run multiple nodes and setup a testbed. A sample DockerFile is provided in the repo to help you get started. Use bash scripts so that the whole process of running nodes can be automated. 
+
+### Steps of setting up a testbed
+- Run a discovery node on a network that can be accessible by other nodes.
+- The address of discovery node should be provided in bootstrapNodes.txt file in storage and gateway nodes.
+- Run atleast one storage node before running any gateway nodes.
+- Now you can run any node arbitrarily to join the network of existing nodes.
 
 
 ## Future Development
@@ -85,8 +90,5 @@ To get the documentation of all the modules use godoc feature, for example :
 > godoc -http=:6060
  
 The above commands generates doumentation for the entire repo, you can access the documentation by going to localhost:6060 on your browser.
-
-
-
 
 
