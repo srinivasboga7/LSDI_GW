@@ -3,13 +3,6 @@
 LSDI (lightweight and scalable DAG based blockchain for verifying IoT data integrity).
 
 
-## Table of contents
-- Background
-- Usage
-    - Prerequisites
-    - Build
-    - API
-
 ## Background
 
 This repository has a implementation of LSDI gateway node and discovery node. LSDI is a DAG based blockchain system inspired from IoTA to improve the scalabilty of using blockchain in IoT environments. To find more about the system please read https://ieeexplore.ieee.org/abstract/document/9334000/.
@@ -29,6 +22,13 @@ You can build the node by running :
 > go build main.go 
 
 A sample DockerFile is provided in the repository to run the node in a docker container.
+
+### Running Discovery Node
+The code for discovery node is provided in the DiscoveryNode directory in the repo. Build the discoveryService.go file by running
+> go build discoveryService.go
+
+To run the discovery node we need to provide port number, max nodes in a shard as command line arguments
+> ./discoveryService <port number> <max nodes in a shard>
 
 
 ### API
