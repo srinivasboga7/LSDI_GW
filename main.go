@@ -4,11 +4,9 @@ import (
 	"LSDI_GW/Crypto"
 	dt "LSDI_GW/DataTypes"
 	"LSDI_GW/client"
-	"LSDI_GW/gateway"
 	"LSDI_GW/node"
 	"LSDI_GW/p2p"
 	"LSDI_GW/serialize"
-	"LSDI_GW/storage"
 	"math/rand"
 	"time"
 )
@@ -33,19 +31,13 @@ func main() {
 	storageCh := make(chan dt.ForwardTx, 20)
 	dag.StorageCh = storageCh
 	ch = node.New(&ID, &dag, PrivateKey)
-	// initializing the storage layer
-	var st storage.Server
-	st.DAG = &dag
-	st.ForwardingCh = ch
-	st.ServerCh = storageCh
-	go st.Run()
+
 	var cli client.Client
 	cli.PrivateKey = PrivateKey
 	cli.Send = ch
 	cli.DAG = &dag
-	// API for accpeting data from the sensors
-	go gateway.RunAPI()
 	// API for monitoring metrics and also generating transactions from the hash value
+	// go cli.SimulateClient()
 	cli.RunAPI()
 }
 

@@ -78,6 +78,16 @@ func (cli *Client) IssueTransaction(hash []byte) []byte {
 	return h[:]
 }
 
+func (cli *Client) SimulateClient() {
+
+	for i := 0; i < 10; i++ {
+		hash := Crypto.Hash([]byte(time.Now().String()))
+		cli.IssueTransaction(hash[:])
+		time.Sleep(time.Second)
+	}
+
+}
+
 type query struct {
 	hash string
 }

@@ -5,6 +5,7 @@ import (
 	dt "LSDI_GW/DataTypes"
 	"LSDI_GW/p2p"
 	"LSDI_GW/serialize"
+	st "LSDI_GW/storage"
 	"log"
 )
 
@@ -43,7 +44,32 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 			sTx.Signature = sign
 			sTx.Peer = p.GetPeerConn()
 			sTx.Forward = true
-			dag.StorageCh <- sTx
+			// dag.StorageCh <- sTx
+			res := st.AddTransaction(dag, tx, sign)
+			if res == 1 {
+				var msg p2p.Msg
+				msg.ID = 32
+				msg.Payload = append(serialize.Encode32(tx), sign...)
+				msg.LenPayload = uint32(len(msg.Payload))
+				send <- msg
+			} else if res == 2 {
+				var msg p2p.Msg
+				msg.ID = 34
+				left := serialize.EncodeToHex(tx.LeftTip[:])
+				right := serialize.EncodeToHex(tx.RightTip[:])
+				dag.Mux.Lock()
+				if _, t1 := dag.Graph[left]; !t1 {
+					msg.Payload = tx.LeftTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(sTx.Peer, msg)
+				}
+				if _, t2 := dag.Graph[right]; !t2 {
+					msg.Payload = tx.RightTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(sTx.Peer, msg)
+				}
+				dag.Mux.Unlock()
+			}
 		}
 	} else if msg.ID == 34 {
 		// request for transaction
@@ -67,8 +93,26 @@ func handleMsg(msg p2p.Msg, send chan p2p.Msg, dag *dt.DAG, p *p2p.Peer, ShardSi
 			sTx.Tx = tx
 			sTx.Signature = sign
 			sTx.Peer = p.GetPeerConn()
-			dag.StorageCh <- sTx
-
+			// dag.StorageCh <- sTx
+			res := st.AddTransaction(dag, tx, sign)
+			if res == 2 {
+				var msg p2p.Msg
+				msg.ID = 34
+				left := serialize.EncodeToHex(tx.LeftTip[:])
+				right := serialize.EncodeToHex(tx.RightTip[:])
+				dag.Mux.Lock()
+				if _, t1 := dag.Graph[left]; !t1 {
+					msg.Payload = tx.LeftTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(sTx.Peer, msg)
+				}
+				if _, t2 := dag.Graph[right]; !t2 {
+					msg.Payload = tx.RightTip[:]
+					msg.LenPayload = uint32(len(msg.Payload))
+					p2p.SendMsg(sTx.Peer, msg)
+				}
+				dag.Mux.Unlock()
+			}
 		}
 	} else if msg.ID == 35 { //Shard signal
 		signal, _ := serialize.Decode35(msg.Payload, msg.LenPayload)
